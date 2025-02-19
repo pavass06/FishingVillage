@@ -1,19 +1,35 @@
-# FisherMan Class
+# FisherMan Class Documentation
 
-The FisherMan class represents a household in the simulation that works as a fisherman. This class is derived from the base Household class (which is abstract), and it adds specific behavior and properties for the fishing village.
+The `FisherMan` class represents an agent (or household) in the fishing village economy. Each FisherMan provides labor and consumes fish. Their demographic characteristics are drawn from statistical distributions to model natural variability.
 
-## Employment
-- **Initial Employment:** 90% of fishermen are initially employed; 10% are unemployed.
-- **Persistent Employment:** Once employed, a FisherMan remains employed until death. Unemployed fishermen actively seek jobs.
+## Parameter Initialization and Distributions
 
-## Job Attributes
-- **Job Sector:** Fixed to `"fishing"`.
-- **Education Level, Experience Level, and Job Preference:** All are fixed at 1 for this simple model.
+- **Age:**  
+  - The initial age of a FisherMan is drawn from a normal distribution N(30, 10).  
+    This reflects the spread in the working-age population.
 
-## Wage
-- **Determination:** The daily wage is determined by the JobMarket. The final wage is set as 1.5 times the clearing wage provided by the JobMarket.
+- **Lifetime:**  
+  - Drawn from a normal distribution N(60, 5), representing that agents are relatively young and have shorter lifespans.
+  
+- **Funds:**  
+  - All FisherMen start with **0 funds**. This means there is no initial inheritance, and every agent begins on equal financial footing.
 
-## Consumption
-- **Fish Orders:** FisherMen submit orders to the FishingMarket to purchase fish, provided they have sufficient funds.
+- **Employment Status:**  
+  - **Initial Condition:** 90% of FisherMen are employed, and 10% are unemployed.
+  - **Persistent Employment:** Once employed, a FisherMan remains employed until his death. Only those who are unemployed will actively seek a job each cycle.
 
-This design ensures that employment is persistent and only those without a job will seek employment each cycle.
+- **Job Attributes:**  
+  - **Job Sector:** Fixed to `"fishing"`.
+  - **Education Level, Experience Level, and Job Preference:** All are fixed at **1** in this simple model.
+
+- **Wage:**  
+  - The daily wage for an employed FisherMan is determined by the JobMarket and is set as **1.5 times the clearing wage**.
+
+## Consumption Behavior
+
+- **Fish Orders:**  
+  - FisherMen submit fish orders to the FishingMarket if they have sufficient funds.
+  - The order quantity is randomly determined (between 1 and 3 fish) using a uniform distribution.
+  - The maximum price a FisherMan is willing to pay is drawn from a normal distribution with a **mean of 5** and a **standard deviation of 0.8**.
+
+This initialization using distributions ensures that while all FisherMen start with equal funds, their age and lifetime vary naturally, affecting their overall behavior in the simulation.

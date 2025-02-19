@@ -34,7 +34,14 @@ private:
     
     // Random engine and distributions.
     default_random_engine generator;
-    normal_distribution<double> firmPriceDist;
+    // For firms:
+    normal_distribution<double> firmFundsDist;  // e.g., mean 100, std dev 20
+    normal_distribution<double> firmStockDist;  // e.g., mean 50, std dev 10
+    normal_distribution<double> firmPriceDist;  // e.g., mean 6, std dev 0.5
+    // For fishermen:
+    normal_distribution<double> fisherLifetimeDist; // e.g., mean 60, std dev 5
+    normal_distribution<double> fisherAgeDist; // e.g., mean 30, std dev 10
+    // For fishing market consumer orders:
     normal_distribution<double> consumerPriceDist;
     uniform_int_distribution<int> goodsQuantityDist;
     
@@ -50,42 +57,74 @@ public:
       goodsQuantityDist(1, 3)
     {
         // Initialize FishingFirms.
-        for (int i = 0; i < params.totalFirms; i++) {
-            int employees = 18; // Each firm employs 18 workers.
-            double stock = 50.0;
+        for (int id = 100; id < 100 + params.totalFirms; id++) {
+            int employees = 18;
+            double funds = firmFundsDist(generator);  // Firm funds drawn from N(100,20) 
+            int lifetime = 365;  // For now, firm lifetime fixed (or you could use a distribution)
+            double stock = firmStockDist(generator);  // Stock drawn from N(50,10)
+            double salesEff = 2.0;
+            double jobMult = 0.05;  // Vacancies = ceil(employees*jobMult)
             double price = firmPriceDist(generator);
-            // Create a FishingFirm. (Funds: 5000, lifetime: 365, sales efficiency: 2.0, job post multiplier: 0.05)
-            auto firm = make_shared<FishingFirm>(300 + i, 5000.0, 365, employees, stock, 2.0, 0.05);
+            auto firm = make_shared<FishingFirm>(id, funds, lifetime, employees, stock, salesEff, jobMult);
             firm->setPriceLevel(price);
             firms.push_back(firm);
             world.addFirm(firm);
-        }
+        }    
+
         // Initialize FisherMen.
         // First 90 will be employed.
-        for (int i = 0; i < params.initialEmployed; i++) {
-            auto fisher = make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
-                                                  true,  // Employed
-                                                  params.initialWage,   // Initial wage
-                                                  0.0, "fishing", 1, 1, 1);
+        for (int id = 0; id < params.initialEmployed; id++) {
+            double funds = 0.0; // All fishermen start with 0 funds.
+            double age = fisherAgeDist(generator); // Draw age from N(60,5)
+            double lifetime = fisherLifetimeDist(generator); // Draw lifetime from N(60,5)
+            auto fisher = make_shared<FisherMan>(id,             // id
+        0.0,            // initFunds
+        lifetime,       // lifetime
+        0.0,            // income // Parameters useless for now
+        0.0,            // savings
+        1.0,            // jobDemand
+        1.0,            // goodsDemand
+        true,          // employed
+        params.initialWage, // wage
+        0.0,            // unemploymentBenefit
+        std::string("fishing"),  // jobSector
+        1,              // educationLevel
+        1,              // experienceLevel
+        1               // jobPreference
+    );
             fishers.push_back(fisher);
             world.addFisherMan(fisher);
         }
-        // Next 10 will be unemployed.
-        for (int i = params.initialEmployed; i < params.totalFisherMen; i++) {
-            auto fisher = make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
-                                                  false, // Unemployed
-                                                  0.0,   // No wage
-                                                  0.0, "fishing", 1, 1, 1);
+        // Then, create the unemployed fishermen.
+        for (int id = params.initialEmployed; id < params.totalFisherMen; id++) {
+            double funds = 0.0;
+            double age = fisherAgeDist(generator);
+            double lifetime = fisherLifetimeDist(generator);
+            auto fisher = make_shared<FisherMan>(id,             // id
+        0.0,            // initFunds
+        lifetime,       // lifetime
+        0.0,            // income // Parameters useless for now
+        0.0,            // savings
+        1.0,            // jobDemand
+        1.0,            // goodsDemand
+        false,          // employed
+        0.0,            // wage
+        0.0,            // unemploymentBenefit
+        std::string("fishing"),  // jobSector
+        1,              // educationLevel
+        1,              // experienceLevel
+        1              // jobPreference);
+    );
+
             fishers.push_back(fisher);
             world.addFisherMan(fisher);
         }
     }
     
     void run() {
-        int totalCycles = params.totalCycles;
-        double GDPs[totalCycles] = {0};             // All elements initialized to 0.0
-        double unemploymentRates[totalCycles] = {0};
-        double inflations[totalCycles] = {0};
+        vector<double> GDPs;
+        vector<double> unemploymentRates;
+        vector<double> inflations;
         
         // Run the simulation loop.
         for (int day = 0; day < params.totalCycles; day++) {
@@ -96,21 +135,21 @@ public:
             double dailyGDP = 0.0;
             for (auto &firm : firms) {
                 dailyGDP += firm->getRevenue();
-                }
-            GDPs[day] = dailyGDP;
+            }
+            GDPs.push_back(dailyGDP);
             
             // Compute unemployment rate from the world state:
             int totalFishers = world.getTotalFishers();
-            int unemployedCount = world.getUnemployedFishers();
-            unemploymentRates[day] = (totalFishers > 0) ? (static_cast<double>(unemployedCount) / totalFishers) * 100.0 : 0.0;
+            int unemployedFishers = world.getUnemployedFishers();
+            double dailyUnemploymentRate = (totalFishers > 0) ? (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
+            unemploymentRates.push_back(dailyUnemploymentRate);
             
-            // Compute inflation as the percentage change in fish market clearing price.
-            // We use a static variable to keep track of the previous day's price.
             static double prevFishPrice = fishingMarket->getClearingFishPrice();
             double currFishPrice = fishingMarket->getClearingFishPrice();
-            inflations[day] = (prevFishPrice > 0) ? ((currFishPrice - prevFishPrice) / prevFishPrice) * 100.0 : 0.0;
+            double inflRate = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
+            inflations.push_back(inflRate);
             prevFishPrice = currFishPrice;
-          }
+        }
         
         // Print the collected data.
         cout << "GDP Values = [";
