@@ -1,35 +1,37 @@
-# World Class
+# World Class Documentation
 
-The World class orchestrates the entire simulation by managing agents, firms, markets, and population dynamics over time.
+The `World` class orchestrates the entire simulation. It manages the population of FisherMen, the set of FishingFirms, and the integration of the JobMarket and FishingMarket over a specified number of cycles (days).
 
-## Time
-- **Cycle:** Each cycle represents one day.
-- **Total Cycles:** The simulation runs for a specified number of days.
+## Key Responsibilities
 
-## Population Management
-- **Agents:**  
-  - FisherMen: The simulation starts with 100 FisherMen.
-  - Initially, 90 FisherMen are employed, and 10 are unemployed.
-- **Birth and Death:**  
-  - Agents are removed when their age exceeds their lifetime.
-  - New FisherMen are born with a probability of 0.1 per day (i.e., on average, 1 new FisherMan every 10 days).
+- **Time Management:**  
+  - Each cycle represents one day.
+  - The simulation runs for a fixed number of cycles as specified by the simulation parameters.
 
-## Market Integration
-- **JobMarket:**  
-  - Every day, firms post job vacancies and only unemployed FisherMen submit job applications.
-  - Employed FisherMen remain employed until death.
-  - The JobMarket clears, and the clearing wage is used to set FisherMen’s wages.
-- **FishingMarket:**  
-  - Firms submit fish offerings and FisherMen submit fish orders.
-  - The market clears based on the matching of orders and offerings.
-  - The fish price is adjusted based on Gaussian factors, and inflation is computed as the day-to-day percentage change.
+- **Population Management:**  
+  - **Agents:**  
+    - The world starts with 100 FisherMen (90 employed, 10 unemployed).
+    - FisherMen who exceed their lifetime are removed.
+  - **Births:**  
+    - New FisherMen are born with a probability of 0.1 per day (approximately 1 new FisherMan every 10 days).
 
-## Economic Indicators
-- **GDP:** The sum of revenues from all FishingFirms.
-- **Unemployment Rate:** Calculated as:
-  ```
-  Unemployment Rate = (Number of Unemployed FisherMen / Total FisherMen) × 100
-  ``` 
-- **Inflation:** The percentage change in the fish price from one day to the next.
+- **Market Integration:**  
+  - **JobMarket:**  
+    - Firms post job vacancies (calculated as `ceil(numberOfEmployees × 0.05)` per firm).
+    - Only unemployed FisherMen submit job applications.
+    - Once employed, a FisherMan remains employed until death.
+    - The clearing wage is adjusted using a Gaussian factor, and the final wage is 1.5 times this clearing wage.
+  - **FishingMarket:**  
+    - Firms submit fish offerings and FisherMen submit orders.
+    - The fish price is adjusted based on supply and demand using Gaussian factors.
+    - Inflation is calculated as the day-to-day percentage change in the fish price.
 
-This class integrates all components of the simulation and calculates macroeconomic indicators for analysis.
+- **Economic Indicators:**  
+  - **GDP:** Sum of the revenues from all FishingFirms.
+  - **Unemployment Rate:**  
+    ```
+    Unemployment Rate = (Number of Unemployed FisherMen / Total FisherMen) × 100%
+    ```
+  - **Inflation:** Percentage change in the fish price from one day to the next.
+
+This class provides the integration of all simulation components and allows for the measurement of key economic indicators.
