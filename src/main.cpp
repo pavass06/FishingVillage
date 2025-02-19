@@ -13,103 +13,132 @@
 
 using namespace std;
 
-int main() {
-    // Declare random engine and distributions.
-    default_random_engine generator(static_cast<unsigned int>(time(0)));
-    normal_distribution<double> firmPriceDist(6.0, 0.5);
-    normal_distribution<double> consumerPriceDist(5.0, 0.8);
-    uniform_int_distribution<int> goodsQuantityDist(1, 3);
+// Structure to hold simulation parameters.
+struct SimulationParameters {
+    int totalCycles = 10;          // 10 days
+    int totalFisherMen = 100;
+    int totalFirms = 5;
+    int initialEmployed = 90;       // 90 employed, 10 unemployed
+    double initialWage = 5.0;       // Initial base wage
+};
 
-    // Simulation parameters.
-    const int totalCycles = 10;         // 10 days.
-    const int totalFisherMen = 100;
-    const int totalFirms = 5;
-    const int initialEmployed = 90;        // 90 employed, 10 unemployed.
-    const double initialWage = 5.0;        // Initial base wage.
-
-    // Create JobMarket and FishingMarket.
-    shared_ptr<JobMarket> jobMarket = make_shared<JobMarket>(initialWage);
-    shared_ptr<FishingMarket> fishingMarket = make_shared<FishingMarket>(6.0);
-
-    // Create World with a birth rate of 0.1.
-    World world(totalCycles, 0.1, jobMarket, fishingMarket);
-
-    // Create 5 FishingFirms, each with 18 employees and stock = 50.
+// The Simulation class encapsulates the entire simulation logic.
+class Simulation {
+private:
+    SimulationParameters params;
+    shared_ptr<JobMarket> jobMarket;
+    shared_ptr<FishingMarket> fishingMarket;
+    World world;
     vector<shared_ptr<FishingFirm>> firms;
-    for (int i = 0; i < totalFirms; i++) {
-        int employees = 18;
-        double stock = 50.0;
-        double price = firmPriceDist(generator);
-        shared_ptr<FishingFirm> firm = make_shared<FishingFirm>(
-            300 + i, 5000.0, 365, employees, stock, 2.0, 0.05
-        );
-        firm->setPriceLevel(price);
-        firms.push_back(firm);
-        world.addFirm(firm);
-    }
-
-    // Create 100 FisherMen: first 90 employed, remaining 10 unemployed.
- for (int i = 0; i < 90; ++i) {
-    auto fisherman = std::make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
-                                                 true,  // Set employed
-                                                 5.0,   // Initial wage
-                                                 0.0, "fishing", 1, 1, 1);
-    world.addFisherMan(fisherman);
-}
-for (int i = 90; i < 100; ++i) {
-    auto fisherman = std::make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
-                                                 false, // Unemployed
-                                                 0.0,   // No wage
-                                                 0.0, "fishing", 1, 1, 1);
-    world.addFisherMan(fisherman);
-}
-
-    vector<double> GDPs;
-    vector<double> unemploymentRates;
-    vector<double> inflations;
-
-    // Simulation loop.
-    for (int day = 0; day < totalCycles; day++) {
-        cout << "===== Day " << day + 1 << " =====" << endl;
-        world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
-
-        double dailyGDP = 0.0;
-        for (auto &firm : firms) {
-            dailyGDP += firm->getRevenue();
-        }
-        GDPs.push_back(dailyGDP);
-        double totalJobApps = jobMarket->getAggregateDemand();
-        int matchedJobs = jobMarket->getMatchedJobs();
-        int total = world.getTotalFishers();
-        int unemployed = world.getUnemployedFishers();
-        double dailyUnemploymentRate = (total > 0) ? (static_cast<double>(unemployed) / total) * 100.0 : 0.0;
-        unemploymentRates.push_back(dailyUnemploymentRate);
-        static double prevFishPrice = fishingMarket->getClearingFishPrice();
-        double currFishPrice = fishingMarket->getClearingFishPrice();
-        double inflRate = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
-        inflations.push_back(inflRate);
-        prevFishPrice = currFishPrice;
+    vector<shared_ptr<FisherMan>> fishers;
     
+    // Random engine and distributions.
+    default_random_engine generator;
+    normal_distribution<double> firmPriceDist;
+    normal_distribution<double> consumerPriceDist;
+    uniform_int_distribution<int> goodsQuantityDist;
+    
+public:
+    Simulation(const SimulationParameters &p)
+    : params(p),
+      jobMarket(make_shared<JobMarket>(p.initialWage)),
+      fishingMarket(make_shared<FishingMarket>(6.0)),
+      world(p.totalCycles, 0.1, jobMarket, fishingMarket),
+      generator(static_cast<unsigned int>(time(0))),
+      firmPriceDist(6.0, 0.5),
+      consumerPriceDist(5.0, 0.8),
+      goodsQuantityDist(1, 3)
+    {
+        // Initialize FishingFirms.
+        for (int i = 0; i < params.totalFirms; i++) {
+            int employees = 18; // Each firm employs 18 workers.
+            double stock = 50.0;
+            double price = firmPriceDist(generator);
+            // Create a FishingFirm. (Funds: 5000, lifetime: 365, sales efficiency: 2.0, job post multiplier: 0.05)
+            auto firm = make_shared<FishingFirm>(300 + i, 5000.0, 365, employees, stock, 2.0, 0.05);
+            firm->setPriceLevel(price);
+            firms.push_back(firm);
+            world.addFirm(firm);
+        }
+        // Initialize FisherMen.
+        // First 90 will be employed.
+        for (int i = 0; i < params.initialEmployed; i++) {
+            auto fisher = make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
+                                                  true,  // Employed
+                                                  params.initialWage,   // Initial wage
+                                                  0.0, "fishing", 1, 1, 1);
+            fishers.push_back(fisher);
+            world.addFisherMan(fisher);
+        }
+        // Next 10 will be unemployed.
+        for (int i = params.initialEmployed; i < params.totalFisherMen; i++) {
+            auto fisher = make_shared<FisherMan>(i, 1000.0, 80, 0.0, 0.0, 1.0, 1.0,
+                                                  false, // Unemployed
+                                                  0.0,   // No wage
+                                                  0.0, "fishing", 1, 1, 1);
+            fishers.push_back(fisher);
+            world.addFisherMan(fisher);
+        }
     }
+    
+    void run() {
+        int totalCycles = params.totalCycles;
+        double GDPs[totalCycles] = {0};             // All elements initialized to 0.0
+        double unemploymentRates[totalCycles] = {0};
+        double inflations[totalCycles] = {0};
+        
+        // Run the simulation loop.
+        for (int day = 0; day < params.totalCycles; day++) {
+            cout << "===== Day " << day + 1 << " =====" << endl;
+            world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
+            
+            // Compute GDP as the sum of revenues from all firms.
+            double dailyGDP = 0.0;
+            for (auto &firm : firms) {
+                dailyGDP += firm->getRevenue();
+                }
+            GDPs[day] = dailyGDP;
+            
+            // Compute unemployment rate from the world state:
+            int totalFishers = world.getTotalFishers();
+            int unemployedCount = world.getUnemployedFishers();
+            unemploymentRates[day] = (totalFishers > 0) ? (static_cast<double>(unemployedCount) / totalFishers) * 100.0 : 0.0;
+            
+            // Compute inflation as the percentage change in fish market clearing price.
+            // We use a static variable to keep track of the previous day's price.
+            static double prevFishPrice = fishingMarket->getClearingFishPrice();
+            double currFishPrice = fishingMarket->getClearingFishPrice();
+            inflations[day] = (prevFishPrice > 0) ? ((currFishPrice - prevFishPrice) / prevFishPrice) * 100.0 : 0.0;
+            prevFishPrice = currFishPrice;
+          }
+        
+        // Print the collected data.
+        cout << "GDP Values = [";
+        for (size_t i = 0; i < GDPs.size(); i++) {
+            cout << GDPs[i];
+            if (i != GDPs.size() - 1) cout << ", ";
+        }
+        cout << "]\n";
+        
+        cout << "Unemployment Values = [";
+        for (size_t i = 0; i < unemploymentRates.size(); i++) {
+            cout << unemploymentRates[i];
+            if (i != unemploymentRates.size() - 1) cout << ", ";
+        }
+        cout << "]\n";
+        
+        cout << "Inflation Values = [";
+        for (size_t i = 0; i < inflations.size(); i++) {
+            cout << inflations[i];
+            if (i != inflations.size() - 1) cout << ", ";
+        }
+        cout << "]\n";
+    }
+};
 
-   std::cout << "GDP Values = " << "[";
-for (size_t i = 0; i < GDPs.size(); i++) {
-    std::cout << GDPs[i];
-    if (i != GDPs.size() - 1) std::cout << ", ";
-}
-std::cout << "]\n";
-
-std::cout << "Unemployment Values = " << "[";
-for (size_t i = 0; i < unemploymentRates.size(); i++) {
-    std::cout << unemploymentRates[i];
-    if (i != unemploymentRates.size() - 1) std::cout << ", ";
-}
-std::cout << "]\n";
-
-std::cout << "Inflation Values = " << "[";
-for (size_t i = 0; i < inflations.size(); i++) {
-    std::cout << inflations[i];
-    if (i != inflations.size() - 1) std::cout << ", ";
-}
-std::cout << "]\n";
+int main() {
+    SimulationParameters params;
+    Simulation sim(params);
+    sim.run();
+    return 0;
 }
