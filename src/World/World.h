@@ -48,6 +48,11 @@ public:
         return fishers.size();
     }
 
+    // Returns the total number of fishermen in the world.
+    double getGDP() const {
+        return GDP;
+    }
+
 // Returns the number of unemployed fishermen.
     int getUnemployedFishers() const {
     int count = 0;
