@@ -33,38 +33,41 @@ private:
     // Random number generator
     default_random_engine generator;
 
-    // Normal distributions (parameters: mean, standard deviation):
-    // Firm funds follow N(100, 20)
-    std::normal_distribution<double> firmFundsDist;
-    // Firm stock follows N(50, 10)
-    std::normal_distribution<double> firmStockDist;
-    // Firm price follows N(6, 0.5)
-    std::normal_distribution<double> firmPriceDist;
+    // Normal distributions for firm funds and stock (unchanged)
+    std::normal_distribution<double> firmFundsDist; // N(100, 20)
+    std::normal_distribution<double> firmStockDist;   // N(50, 10)
 
-    // Fisherman lifetime follows N(60, 5)
-    std::normal_distribution<double> fisherLifetimeDist;
-    // Fisherman age follows N(30, 10)
-    std::normal_distribution<double> fisherAgeDist;
+    // Evolving means for offered and perceived prices
+    double currentOfferMean;     // Evolving mean for firm's offered price (starts at 6.0)
+    double currentPerceivedMean; // Evolving mean for consumer's perceived price (starts at 5.0)
 
-    // Consumer price follows N(5, 0.8)
-    std::normal_distribution<double> consumerPriceDist;
-    // Goods quantity follows a uniform distribution between 1 and 3
-    std::uniform_int_distribution<int> goodsQuantityDist;
+    // Distributions for firm offered price and consumer perceived price
+    std::normal_distribution<double> firmPriceDist;    // Initially N(6, 0.5)
+    std::normal_distribution<double> consumerPriceDist;  // Initially N(5, 0.8)
+
+    // Other distributions remain the same
+    std::normal_distribution<double> fisherLifetimeDist; // N(60, 5)
+    std::normal_distribution<double> fisherAgeDist;      // N(30, 10)
+    std::uniform_int_distribution<int> goodsQuantityDist; // Uniform between 1 and 3
 
 public:
-    // Constructor: initialize simulation parameters and distributions
+    // Constructor: initialize simulation parameters, market, and distributions
     Simulation(const SimulationParameters &p)
         : params(p),
           jobMarket(make_shared<JobMarket>(p.initialWage)),
-          fishingMarket(make_shared<FishingMarket>(6.0)),
+          fishingMarket(make_shared<FishingMarket>(5.0)), // initial clearing price set to 5.0
           world(p.totalCycles, 0.1, jobMarket, fishingMarket),
           generator(static_cast<unsigned int>(time(0))),
           firmFundsDist(100.0, 20.0),
           firmStockDist(50.0, 10.0),
+          // Initialize evolving means with base values
+          currentOfferMean(6.0),
+          currentPerceivedMean(5.0),
+          // Initialize the price distributions with these means
           firmPriceDist(6.0, 0.5),
+          consumerPriceDist(5.0, 0.8),
           fisherLifetimeDist(60.0, 5.0),
           fisherAgeDist(30.0, 10.0),
-          consumerPriceDist(5.0, 0.8),
           goodsQuantityDist(1, 3)
     {
         // Initialize FishingFirms
@@ -74,7 +77,7 @@ public:
             int lifetime = 365;                          // Fixed firm lifetime (days)
             double salesEff = 2.0;                       // Sales efficiency factor
             double jobMult = 0.05;                       // Job multiplier for vacancies
-            double price = firmPriceDist(generator);     // Draw price from N(6, 0.5)
+            double price = firmPriceDist(generator);     // Draw offered price from N(currentOfferMean, 0.5)
             
             auto firm = make_shared<FishingFirm>(id, funds, lifetime, 18, stock, salesEff, jobMult);
             firm->setPriceLevel(price);
@@ -133,7 +136,7 @@ public:
         }
     }
 
-    // Run the simulation cycles and compute summary statistics
+    // Run the simulation cycles
     void run() {
         vector<double> GDPs;
         vector<double> unemploymentRates;
@@ -143,29 +146,54 @@ public:
         // Simulation loop
         for (int day = 0; day < params.totalCycles; day++) {
             cout << "===== Day " << day + 1 << " =====" << endl;
-            // Run one simulation cycle using the stored distributions
+            
+            // Run one simulation cycle using the current price distributions.
             world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
             
-            // Retrieve daily GDP from the world object
+            // Retrieve daily GDP from the world object.
             double dailyGDP = world.getGDP();
             GDPs.push_back(dailyGDP);
             
-            // Calculate GDP per capita: dailyGDP divided by number of fishermen
+            // Calculate GDP per capita: dailyGDP divided by number of fishermen.
             int totalFishers = world.getTotalFishers();
             double perCapita = (totalFishers > 0) ? dailyGDP / totalFishers : 0.0;
             gdpPerCapitas.push_back(perCapita);
             
-            // Calculate unemployment rate (in percentage)
+            // Calculate unemployment rate (in percentage).
             int unemployedFishers = world.getUnemployedFishers();
-            double dailyUnemploymentRate = (totalFishers > 0) ? (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
+            double dailyUnemploymentRate = (totalFishers > 0) ?
+                (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
             unemploymentRates.push_back(dailyUnemploymentRate);
             
-            // Calculate inflation rate based on fish market clearing price
+            // Calculate inflation rate based on fish market clearing price.
             static double prevFishPrice = fishingMarket->getClearingFishPrice();
             double currFishPrice = fishingMarket->getClearingFishPrice();
-            double inflRate = (prevFishPrice > 0) ? ((currFishPrice - prevFishPrice) / prevFishPrice) * 100.0 : 0.0;
+            double inflRate = (prevFishPrice > 0) ? ((currFishPrice - prevFishPrice) / prevFishPrice)*100 : 0.0;
             inflations.push_back(inflRate);
             prevFishPrice = currFishPrice;
+            
+            // --- Update the underlying price means ---
+            // Instead of using the clearing price directly, we update the means using a drawn adjustment factor.
+            // Determine the ratio from the market's aggregate values.
+            double aggSupply = fishingMarket->getAggregateSupply();
+            double aggDemand = fishingMarket->getAggregateDemand();
+            double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
+            double factor = 1.0;
+            if (ratio > 1.0) {
+                // Demand exceeds supply: draw factor from N(1.025, 0.005)
+                std::normal_distribution<double> adjustDist(1.025, 0.005);
+                factor = adjustDist(generator);
+            } else if (ratio < 1.0) {
+                // Supply exceeds demand: draw factor from N(0.975, 0.005)
+                std::normal_distribution<double> adjustDist(0.975, 0.005);
+                factor = adjustDist(generator);
+            }
+            // Update the evolving means.
+            currentOfferMean *= factor;
+            currentPerceivedMean *= factor;
+            // Update the distributions with the new means (standard deviations remain constant).
+            firmPriceDist.param(std::normal_distribution<double>::param_type(currentOfferMean, 0.5));
+            consumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
         }
         
         // Compute GDP growth for each cycle (except the last)

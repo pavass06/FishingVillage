@@ -27,6 +27,9 @@ class FishingMarket : public Market {
 private:
     std::vector<FishOffering> offerings;
     std::vector<FishOrder> orders;
+    // New members to track aggregate supply and demand:
+    double aggregateSupply = 0.0;
+    double aggregateDemand = 0.0;
 public:
     FishingMarket(double initialClearingPrice = 5.0)
         : Market(initialClearingPrice) {}
@@ -34,6 +37,8 @@ public:
     virtual ~FishingMarket() {}
 
     double getClearingFishPrice() const { return clearingPrice; }
+    double getAggregateSupply() const { return aggregateSupply; }
+    double getAggregateDemand() const { return aggregateDemand; }
 
     void submitFishOffering(const FishOffering& offering) {
         offerings.push_back(offering);
@@ -45,16 +50,25 @@ public:
         aggregateDemand += order.quantity;
     }
 
+    // clearMarket calculates the new clearing price as the weighted mean of all deal prices.
     virtual void clearMarket(std::default_random_engine &generator) override {
         double matchedVolume = 0.0;
+        double sumTransactionValue = 0.0; // Sum of (deal price * transaction volume)
+        double totalTransactionVolume = 0.0; // Total volume transacted
+
+        // Match orders with offerings.
         for (auto &order : orders) {
             for (auto &off : offerings) {
                 if (order.desiredSector == off.productSector) {
+                    // Transaction occurs if the consumer's perceived price meets or exceeds the firm's offered price.
                     if (order.perceivedValue >= off.offeredPrice) {
                         double transacted = std::min(order.quantity, off.quantity);
                         order.quantity -= transacted;
                         off.quantity -= transacted;
                         matchedVolume += transacted;
+                        totalTransactionVolume += transacted;
+                        // Assume the transaction price is the firm's offered price.
+                        sumTransactionValue += off.offeredPrice * transacted;
                         if (order.quantity <= 0)
                             break;
                     }
@@ -62,22 +76,22 @@ public:
             }
         }
         std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
-        if (aggregateDemand > 0) {
-            double ratio = aggregateDemand / (aggregateSupply > 0 ? aggregateSupply : 1);
-            if (ratio > 1.0) {
-                std::normal_distribution<double> adjustDist(1.025, 0.005);
-                clearingPrice *= adjustDist(generator);
-            } else if (ratio < 1.0) {
-                std::normal_distribution<double> adjustDist(0.975, 0.005);
-                clearingPrice *= adjustDist(generator);
-            }
+        
+        // Set the clearing price to the weighted average of all deal prices.
+        if (totalTransactionVolume > 0) {
+            clearingPrice = sumTransactionValue / totalTransactionVolume;
         }
+        // Reset aggregate values for the next cycle.
+        aggregateSupply = 0.0;
+        aggregateDemand = 0.0;
     }
 
     virtual void reset() override {
         Market::reset();
         offerings.clear();
         orders.clear();
+        aggregateSupply = 0.0;
+        aggregateDemand = 0.0;
     }
 
     virtual void print() const override {
