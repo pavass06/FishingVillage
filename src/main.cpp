@@ -11,13 +11,23 @@
 #include "JobMarket.h"
 #include "FishingMarket.h"
 
+
+double generateNormalRand(double mean, double variance) {
+    static std::random_device rd;  // Seed for the random number engine
+    static std::mt19937 gen(rd()); // Mersenne Twister PRNG
+    double stddev = std::sqrt(variance); // Standard deviation is the square root of variance
+    std::normal_distribution<double> distribution(mean, stddev);
+    return distribution(gen); // Generate a random number from the normal distribution
+}
+
+
 using namespace std;
 
 // Structure to hold simulation parameters.
 struct SimulationParameters {
-    int totalCycles = 10;          // 10 days
-    int totalFisherMen = 100;
-    int totalFirms = 5;
+    int totalCycles = 100;          // 10 days
+    int totalFisherMen = 10000;
+    int totalFirms = 500;
     int initialEmployed = 90;       // 90 employed, 10 unemployed
     double initialWage = 5.0;       // Initial base wage
 };
@@ -36,7 +46,7 @@ private:
     default_random_engine generator;
     // For firms:
     normal_distribution<double> firmFundsDist;  // e.g., mean 100, std dev 20
-    normal_distribution<double> firmStockDist;  // e.g., mean 50, std dev 10
+    normal_distribution<double> firmStockDist;  // e.g., mean 50, std dev 10 ****
     normal_distribution<double> firmPriceDist;  // e.g., mean 6, std dev 0.5
     // For fishermen:
     normal_distribution<double> fisherLifetimeDist; // e.g., mean 60, std dev 5
@@ -59,9 +69,13 @@ public:
         // Initialize FishingFirms.
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             int employees = 18;
-            double funds = firmFundsDist(generator);  // Firm funds drawn from N(100,20) 
+           // double funds = firmFundsDist(generator);  // Firm funds drawn from N(100,20) 
+            double funds = generateNormalRand(100,20);
             int lifetime = 365;  // For now, firm lifetime fixed (or you could use a distribution)
-            double stock = firmStockDist(generator);  // Stock drawn from N(50,10)
+            //double stock = firmStockDist(generator);  // Stock drawn from N(50,10)
+
+            double stock = generateNormalRand(50,10);
+            //double stock = 50;
             double salesEff = 2.0;
             double jobMult = 0.05;  // Vacancies = ceil(employees*jobMult)
             double price = firmPriceDist(generator);
@@ -132,10 +146,16 @@ public:
             world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
             
             // Compute GDP as the sum of revenues from all firms.
-            double dailyGDP = 0.0;
-            for (auto &firm : firms) {
-                dailyGDP += firm->getRevenue();
-            }
+            // double dailyGDP = 0.0;
+            // for (auto &firm : firms) {
+            //     dailyGDP += firm->getRevenue();
+            // }
+
+            double dailyGDP = world.getGDP();
+
+            // std::cout << " GDP = " << dailyGDP << std::endl;
+            // exit(0); 
+
             GDPs.push_back(dailyGDP);
             
             // Compute unemployment rate from the world state:
@@ -172,6 +192,10 @@ public:
             if (i != inflations.size() - 1) cout << ", ";
         }
         cout << "]\n";
+
+
+        //// 
+
     }
 };
 

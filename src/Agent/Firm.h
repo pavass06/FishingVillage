@@ -34,6 +34,12 @@ public:
 
     virtual double calculateRevenue() const {
          double quantitySold = std::min(stock, salesEfficiency * numberOfEmployees);
+
+     //     std::cout << " numberOfEmployees " <<  numberOfEmployees << std::endl;
+     //     std::cout << " stock " <<  stock << std::endl;
+     //     std::cout << " Sold " << quantitySold << std::endl;
+     //     std::cout << " price level " << priceLevel<< std::endl;
+         
          return quantitySold * priceLevel;
     }
 
@@ -55,8 +61,8 @@ public:
 
     virtual void act() override {
          double invest = investmentExpenditure();
-         stock += invest;
-         if(stock < 0) stock = 0;  // Ensure stock never goes negative.
+         stock += invest; 
+         stock = std::max(stock,0.0); // Ensure stock never goes negative.
          funds += calculateRevenue() - wageExpense;
     }
 
