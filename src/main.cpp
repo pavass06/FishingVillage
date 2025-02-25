@@ -13,9 +13,9 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 100;          // Total simulation cycles (days)
-    int totalFisherMen = 10000;     // Total number of fishermen
-    int totalFirms = 500;           // Total number of fishing firms
+    int totalCycles = 10;          // Total simulation cycles (days)
+    int totalFisherMen = 100;     // Total number of fishermen
+    int totalFirms = 5;           // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
     double initialWage = 5.0;       // Initial base wage for employed fishermen
 };
@@ -33,7 +33,7 @@ private:
     // Random number generator
     default_random_engine generator;
 
-    // Normal distributions (mean, standard deviation):
+    // Normal distributions (parameters: mean, standard deviation):
     // Firm funds follow N(100, 20)
     std::normal_distribution<double> firmFundsDist;
     // Firm stock follows N(50, 10)
@@ -133,42 +133,69 @@ public:
         }
     }
 
-    // Run the simulation cycles
+    // Run the simulation cycles and compute summary statistics
     void run() {
         vector<double> GDPs;
         vector<double> unemploymentRates;
         vector<double> inflations;
+        vector<double> gdpPerCapitas;  // GDP per capita for each cycle
         
+        // Simulation loop
         for (int day = 0; day < params.totalCycles; day++) {
             cout << "===== Day " << day + 1 << " =====" << endl;
-            // Run one simulation cycle using the stored distributions for randomness
+            // Run one simulation cycle using the stored distributions
             world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
             
-            // Retrieve GDP from the world object
+            // Retrieve daily GDP from the world object
             double dailyGDP = world.getGDP();
             GDPs.push_back(dailyGDP);
             
-            // Calculate unemployment rate
+            // Calculate GDP per capita: dailyGDP divided by number of fishermen
             int totalFishers = world.getTotalFishers();
+            double perCapita = (totalFishers > 0) ? dailyGDP / totalFishers : 0.0;
+            gdpPerCapitas.push_back(perCapita);
+            
+            // Calculate unemployment rate (in percentage)
             int unemployedFishers = world.getUnemployedFishers();
-            double dailyUnemploymentRate = (totalFishers > 0) ? 
-                (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
+            double dailyUnemploymentRate = (totalFishers > 0) ? (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
             unemploymentRates.push_back(dailyUnemploymentRate);
             
-            // Compute inflation rate using the fish market clearing price
+            // Calculate inflation rate based on fish market clearing price
             static double prevFishPrice = fishingMarket->getClearingFishPrice();
             double currFishPrice = fishingMarket->getClearingFishPrice();
-            double inflRate = (prevFishPrice > 0) ? 
-                (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
+            double inflRate = (prevFishPrice > 0) ? ((currFishPrice - prevFishPrice) / prevFishPrice) * 100.0 : 0.0;
             inflations.push_back(inflRate);
             prevFishPrice = currFishPrice;
         }
         
-        // Output the collected data
+        // Compute GDP growth for each cycle (except the last)
+        vector<double> gdpGrowth;
+        for (size_t i = 0; i < GDPs.size() - 1; i++) {
+            if (GDPs[i] != 0)
+                gdpGrowth.push_back((GDPs[i+1] - GDPs[i]) / GDPs[i]);
+            else
+                gdpGrowth.push_back(0.0);
+        }
+        
+        // Output collected data
         cout << "GDP Values = [";
         for (size_t i = 0; i < GDPs.size(); i++) {
             cout << GDPs[i];
             if (i != GDPs.size() - 1) cout << ", ";
+        }
+        cout << "]\n";
+        
+        cout << "GDP Growth Values = [";
+        for (size_t i = 0; i < gdpGrowth.size(); i++) {
+            cout << gdpGrowth[i];
+            if (i != gdpGrowth.size() - 1) cout << ", ";
+        }
+        cout << "]\n";
+        
+        cout << "GDP per Capita Values = [";
+        for (size_t i = 0; i < gdpPerCapitas.size(); i++) {
+            cout << gdpPerCapitas[i];
+            if (i != gdpPerCapitas.size() - 1) cout << ", ";
         }
         cout << "]\n";
         
