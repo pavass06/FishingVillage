@@ -28,7 +28,7 @@ private:
     std::vector<FishOffering> offerings;
     std::vector<FishOrder> orders;
 public:
-    FishingMarket(double initialClearingPrice = 6.0)
+    FishingMarket(double initialClearingPrice = 5.0)
         : Market(initialClearingPrice) {}
 
     virtual ~FishingMarket() {}

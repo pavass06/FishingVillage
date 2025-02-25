@@ -7,7 +7,7 @@ The FishingMarket is where fish are bought and sold. It aggregates fish offering
   - Each FisherMan submits an order specifying a quantity (between 1 and 3) and a maximum price drawn from a normal distribution, N(5, 0.80).
 - **Matching:**  
   - Orders are matched sequentially with fish offerings.
-  - A match occurs if the consumer’s perceived maximum price is at least the firm’s offered price.
+  - A match occurs automatically if the consumer’s perceived maximum price is at least the firm’s offered price.
 - **Clearing Fish Price Adjustment:**  
   After matching:
   - If demand exceeds supply, the new fish price is multiplied by a factor drawn from N(1.025, 0.005).
