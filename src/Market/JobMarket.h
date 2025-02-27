@@ -33,13 +33,27 @@ private:
     std::vector<JobPosting> postings;
     std::vector<JobApplication> applications;
     int matchedJobs;
+    // New parameters for wage determination based on fish price
+    double meanFishOrder;    // Average fish consumption per person (e.g., 1.5)
+    double currentFishPrice; // Current price of a fish (e.g., starts at 5)
 public:
-    JobMarket(double initPrice)
-        : Market(initPrice), matchedJobs(0) {}
+    // Constructor now initializes the wage based on fish price and mean fish order.
+    // initWage is provided but will be overridden by our fish-based wage calculation.
+    JobMarket(double initWage, double fishPrice, double meanOrder = 1.5)
+        : Market(initWage), matchedJobs(0), meanFishOrder(meanOrder), currentFishPrice(fishPrice)
+    {
+        // Initialize the wage based on the current fish price and consumption rate.
+        clearingPrice = currentFishPrice * meanFishOrder;
+    }
 
     virtual ~JobMarket() {}
 
     double getClearingWage() const { return clearingPrice; }
+
+    // Allow external updating of the fish price (e.g., if inflation changes the price).
+    void setCurrentFishPrice(double fishPrice) {
+        currentFishPrice = fishPrice;
+    }
 
     void submitJobPosting(const JobPosting &posting) {
         postings.push_back(posting);
@@ -53,8 +67,9 @@ public:
         aggregateDemand += app.quantity;
     }
 
-    // Override clearMarket to accept a random generator.
+    // clearMarket now focuses on matching jobs and recalculating the wage based on the fish price.
     virtual void clearMarket(std::default_random_engine &generator) override {
+        // Process matching between postings and applications.
         matchedJobs = 0;
         for (auto &posting : postings) {
             for (auto &app : applications) {
@@ -71,16 +86,8 @@ public:
                 }
             }
         }
-        if (aggregateDemand > 0) {
-            double ratio = aggregateDemand / (aggregateSupply > 0 ? aggregateSupply : 1);
-            if (ratio > 1.0) {
-                std::normal_distribution<double> adjustDist(1.025, 0.005);
-                clearingPrice *= adjustDist(generator);
-            } else if (ratio < 1.0) {
-                std::normal_distribution<double> adjustDist(0.975, 0.005);
-                clearingPrice *= adjustDist(generator);
-            }
-        }
+        // Update the clearing wage based on the current fish price and mean fish order.
+        clearingPrice = currentFishPrice * meanFishOrder;
     }
 
     virtual void reset() override {
@@ -95,7 +102,7 @@ public:
         std::cout << "JobMarket State:" << std::endl;
         std::cout << "Aggregate Demand (Applications): " << aggregateDemand << std::endl;
         std::cout << "Aggregate Supply (Vacancies): " << aggregateSupply << std::endl;
-        std::cout << "Clearing Wage: " << clearingPrice << std::endl;
+        std::cout << "Clearing Wage (Based on fish price): " << clearingPrice << std::endl;
         std::cout << "Matched Jobs: " << matchedJobs << std::endl;
         std::cout << "Total Postings: " << postings.size() 
                   << " | Total Applications: " << applications.size() << std::endl;

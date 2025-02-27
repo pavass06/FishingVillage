@@ -9,9 +9,12 @@ The JobMarket aggregates job postings from firms and job applications from unemp
   - A match occurs if the posting’s sector matches the application’s sector.
   - In this simple model, requirements are fixed at 1, so matching is straightforward.
 - **Clearing Wage Adjustment:**  
-  After matching:
-  - If demand exceeds supply, the clearing wage is adjusted by a factor drawn from N(1.025, 0.005).
-  - If supply exceeds demand, the clearing wage is adjusted by a factor drawn from N(0.975, 0.005).
-  - The final wage for FisherMen is 1.5 times the clearing wage.
+  - The starting wage is at 5 * 1,5 = 7,5
+  - The wages evolve with the current price of fish which is impacted by inflation :
+    ```
+    clearingPrice = price of a current fish * mean of fisher order by person
+    ``` 
+    c.f.[FishingMarket.md](fishingMarket.md) for more
+  
 
 This class forms the basis for how employment is managed in the simulation.
