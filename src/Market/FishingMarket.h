@@ -2,19 +2,26 @@
 #define FISHINGMARKET_H
 
 #include "Market.h"
+#include "FishingFirm.h"  // La définition complète de FishingFirm est maintenant disponible.
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <memory>
 
+// La structure FishOffering est déjà définie si FISH_OFFERING_DEFINED est défini.
+#ifndef FISH_OFFERING_DEFINED
+#define FISH_OFFERING_DEFINED
 struct FishOffering {
     int id;
     std::string productSector;
     double cost;
     double offeredPrice;
     double quantity;
+    std::shared_ptr<FishingFirm> firm;
 };
+#endif
 
 struct FishOrder {
     int id;
@@ -27,10 +34,8 @@ class FishingMarket : public Market {
 private:
     std::vector<FishOffering> offerings;
     std::vector<FishOrder> orders;
-    // Track aggregate supply and demand:
     double aggregateSupply = 0.0;
     double aggregateDemand = 0.0;
-    // Persistent member to store matched fish volume for the current cycle.
     double matchedVolume;
 
 public:
@@ -53,26 +58,24 @@ public:
         aggregateDemand += order.quantity;
     }
 
-    // clearMarket calculates the new clearing price as the weighted average of all deal prices.
     virtual void clearMarket(std::default_random_engine &generator) override {
-        // Reset matchedVolume for the new cycle.
         matchedVolume = 0.0;
-        double sumTransactionValue = 0.0;   // Sum of (deal price * transaction volume)
-        double totalTransactionVolume = 0.0;  // Total volume transacted
+        double sumTransactionValue = 0.0;
+        double totalTransactionVolume = 0.0;
 
-        // Match orders with offerings.
         for (auto &order : orders) {
             for (auto &off : offerings) {
                 if (order.desiredSector == off.productSector) {
-                    // Transaction occurs if the consumer's perceived price meets or exceeds the firm's offered price.
                     if (order.perceivedValue >= off.offeredPrice) {
                         double transacted = std::min(order.quantity, off.quantity);
                         order.quantity -= transacted;
                         off.quantity -= transacted;
                         matchedVolume += transacted;
                         totalTransactionVolume += transacted;
-                        // Assume the transaction price is the firm's offered price.
                         sumTransactionValue += off.offeredPrice * transacted;
+                        if (off.firm) {
+                            off.firm->addSale(off.offeredPrice, transacted);
+                        }
                         if (order.quantity <= 0)
                             break;
                     }
@@ -80,11 +83,9 @@ public:
             }
         }
         
-        // Set the clearing price to the weighted average of all deal prices.
         if (totalTransactionVolume > 0) {
             clearingPrice = sumTransactionValue / totalTransactionVolume;
         }
-        // Reset aggregate values for the next cycle.
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
     }
@@ -98,16 +99,16 @@ public:
     }
 
     virtual void print() const override {
-        std::cout<< "-----------" << std::endl;
+        std::cout << "-----------" << std::endl;
         std::cout << "Fishing Market State:" << std::endl;
         Market::print();
         double totalFishProvided = 0.0;
         for (const auto &offering : offerings) {
             totalFishProvided += offering.quantity;
         }
+        std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
         std::cout << "Total Fish Provided: " << totalFishProvided << std::endl;
         std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
-        std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
     }
 };
 

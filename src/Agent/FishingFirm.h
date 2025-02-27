@@ -4,13 +4,27 @@
 #include "Firm.h"
 #include <algorithm>
 #include <iostream>
-#include <cmath>             // For std::ceil
-#include "FishingMarket.h"   // This file defines the struct FishOffering
+#include <cmath>  // For std::ceil
+#include <memory>
+#include <string>
+
+// Si FishOffering n'est pas déjà défini, on le définit ici.
+#ifndef FISH_OFFERING_DEFINED
+#define FISH_OFFERING_DEFINED
+struct FishOffering {
+    int id;
+    std::string productSector;
+    double cost;
+    double offeredPrice;
+    double quantity;
+    // Utilisation d'un shared_ptr pour pointer vers FishingFirm.
+    std::shared_ptr<class FishingFirm> firm;
+};
+#endif
 
 class FishingFirm : public Firm {
 public:
-    // Constructor for FishingFirm.
-    // PriceLevel is fixed to 6; jobPostMultiplier is set to 0.05.
+    // Le priceLevel est fixé à 6; le jobPostMultiplier est fixé à 0.05.
     FishingFirm(int id, double initFunds, int lifetime, int numberOfEmployees,
                 double stock,
                 double salesEfficiency = 2.0, double jobPostMultiplier = 0.05)
@@ -19,11 +33,12 @@ public:
 
     virtual ~FishingFirm() {}
 
+    // Retourne la quantité de poisson disponible à la vente.
     virtual double getGoodsSupply() const {
         return std::min(stock, salesEfficiency * static_cast<double>(numberOfEmployees));
     }
 
-    // generateGoodsOffering(): Creates a FishOffering.
+    // Génère une offre de poisson.
     virtual FishOffering generateGoodsOffering(double cost) const {
         FishOffering offer;
         offer.id = getID();
@@ -31,22 +46,22 @@ public:
         offer.cost = cost;
         offer.offeredPrice = getPriceLevel();
         offer.quantity = getGoodsSupply();
+        // Le champ firm sera assigné par le code appelant (par exemple dans FishingMarket).
         return offer;
     }
 
-    // generateJobPosting(): Creates a JobPosting with fixed requirements (all set to 1).
+    // Génère une offre d'emploi.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
-    JobPosting posting;
-    posting.firmID = getID();
-    posting.jobSector = sector; // For our village, "fishing"
-    posting.educationRequirement = eduReq;  // Fixed to 1.
-    posting.experienceRequirement = expReq; // Fixed to 1.
-    posting.attractiveness = attract;       // Fixed to 1.
-    posting.vacancies = std::max(1, static_cast<int>(std::ceil(numberOfEmployees * jobPostMultiplier))); // Post at least 1 vacancy
-    posting.recruiting = (posting.vacancies > 0);
-    return posting;
-}
-
+        JobPosting posting;
+        posting.firmID = getID();
+        posting.jobSector = sector; // Pour notre village, "fishing"
+        posting.educationRequirement = eduReq;  
+        posting.experienceRequirement = expReq; 
+        posting.attractiveness = attract;       
+        posting.vacancies = std::max(1, static_cast<int>(std::ceil(numberOfEmployees * jobPostMultiplier)));
+        posting.recruiting = (posting.vacancies > 0);
+        return posting;
+    }
 
     virtual void print() const override {
         Firm::print();

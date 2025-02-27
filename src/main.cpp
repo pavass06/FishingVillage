@@ -24,7 +24,7 @@ struct SimulationParameters {
 class Simulation {
 private:
     SimulationParameters params;
-    // Instantiate JobMarket with: initial wage (unused), fish price, and mean fish order.
+    // Instantiate JobMarket with: initial wage, fish price = 5.0, and mean fish order = 1.5.
     shared_ptr<JobMarket> jobMarket;
     shared_ptr<FishingMarket> fishingMarket;
     World world;
@@ -55,7 +55,7 @@ public:
     // Constructor: initialize simulation parameters, markets, and distributions
     Simulation(const SimulationParameters &p)
         : params(p),
-          // Note: Pass initial wage, fish price = 5.0, and mean fish order = 1.5.
+          // Pass initial wage, fish price = 5.0, and mean fish order = 1.5.
           jobMarket(make_shared<JobMarket>(p.initialWage, 5.0, 1.5)),
           fishingMarket(make_shared<FishingMarket>(5.0)), // initial fish price = 5.0
           world(p.totalCycles, 0.1, jobMarket, fishingMarket),

@@ -27,7 +27,7 @@ private:
     double previousFishPrice; // For inflation calculations
 
     double GDP;
-    double unemploymentRate;  // Total people unemployed / Total FisherMen.
+    double unemploymentRate;  // Total unemployed / Total FisherMen.
     double inflation;         // Percentage change in fish market clearing price.
 
 public:
@@ -120,7 +120,6 @@ public:
         // --- JOB MARKET PROCESS ---
         // Each firm submits its job posting.
         for (auto &firm : firms) {
-            // generateJobPosting() is implemented in FishingFirm (and declared in Firm as pure virtual).
             JobPosting posting = firm->generateJobPosting("fishing", 1, 1, 1);
             jobMarket->submitJobPosting(posting);
         }
@@ -151,7 +150,10 @@ public:
             firm->setPriceLevel(newPrice);
             firm->setWageExpense(clearingWage);
             // Assume firms are FishingFirm.
+            // Generate goods offering. The function should return an offering.
             FishOffering offer = dynamic_cast<FishingFirm*>(firm.get())->generateGoodsOffering(2.0);
+            // Assign the issuing firm to the offering.
+            offer.firm = std::dynamic_pointer_cast<FishingFirm>(firm);
             fishingMarket->submitFishOffering(offer);
         }
         for (auto &fisher : fishers) {
@@ -183,11 +185,8 @@ public:
         inflation = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
         prevFishPrice = currFishPrice;
 
-        
-       
-        
         // Print the day's macroeconomic summary.
-        std::cout<< "-----------" << std::endl;
+        std::cout << "-----------" << std::endl;
         std::cout << "Day " << currentCycle + 1 << " Summary:" << std::endl;
         std::cout << "Population: " << getTotalFishers() << std::endl;
         std::cout << "  GDP: " << GDP << std::endl;
