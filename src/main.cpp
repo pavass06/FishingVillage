@@ -158,14 +158,10 @@ public:
             jobMarket->setCurrentFishPrice(updatedFishPrice);
             // Recalculate the clearing wage: (fish price) * (mean fish order)
             jobMarket->clearMarket(generator);
-            // Print the updated JobMarket state
-            jobMarket->print();
-            // -------------------------------------------------------------------------
             
-            // Retrieve the current population and print it.
+            // Retrieve the current population.
             int totalFishers = world.getTotalFishers();
             populations.push_back(totalFishers);
-            cout << "Population: " << totalFishers << endl;
             
             // Retrieve daily GDP from the world object.
             double dailyGDP = world.getGDP();

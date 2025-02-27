@@ -27,12 +27,15 @@ class FishingMarket : public Market {
 private:
     std::vector<FishOffering> offerings;
     std::vector<FishOrder> orders;
-    // New members to track aggregate supply and demand:
+    // Track aggregate supply and demand:
     double aggregateSupply = 0.0;
     double aggregateDemand = 0.0;
+    // Persistent member to store matched fish volume for the current cycle.
+    double matchedVolume;
+
 public:
     FishingMarket(double initialClearingPrice = 5.0)
-        : Market(initialClearingPrice) {}
+        : Market(initialClearingPrice), matchedVolume(0.0) {}
 
     virtual ~FishingMarket() {}
 
@@ -50,11 +53,12 @@ public:
         aggregateDemand += order.quantity;
     }
 
-    // clearMarket calculates the new clearing price as the weighted mean of all deal prices.
+    // clearMarket calculates the new clearing price as the weighted average of all deal prices.
     virtual void clearMarket(std::default_random_engine &generator) override {
-        double matchedVolume = 0.0;
-        double sumTransactionValue = 0.0; // Sum of (deal price * transaction volume)
-        double totalTransactionVolume = 0.0; // Total volume transacted
+        // Reset matchedVolume for the new cycle.
+        matchedVolume = 0.0;
+        double sumTransactionValue = 0.0;   // Sum of (deal price * transaction volume)
+        double totalTransactionVolume = 0.0;  // Total volume transacted
 
         // Match orders with offerings.
         for (auto &order : orders) {
@@ -75,7 +79,6 @@ public:
                 }
             }
         }
-        std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
         
         // Set the clearing price to the weighted average of all deal prices.
         if (totalTransactionVolume > 0) {
@@ -94,17 +97,18 @@ public:
         aggregateDemand = 0.0;
     }
 
-   virtual void print() const override {
-    std::cout << "Fishing Market State:" << std::endl;
-    Market::print();
-    double totalFishProvided = 0.0;
-    for (const auto &offering : offerings) {
-        totalFishProvided += offering.quantity;
+    virtual void print() const override {
+        std::cout<< "-----------" << std::endl;
+        std::cout << "Fishing Market State:" << std::endl;
+        Market::print();
+        double totalFishProvided = 0.0;
+        for (const auto &offering : offerings) {
+            totalFishProvided += offering.quantity;
+        }
+        std::cout << "Total Fish Provided: " << totalFishProvided << std::endl;
+        std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
+        std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
     }
-    std::cout << "Total Fish Provided: " << totalFishProvided << std::endl;
-    std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
-}
-
 };
 
 #endif // FISHINGMARKET_H

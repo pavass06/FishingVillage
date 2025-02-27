@@ -48,21 +48,20 @@ public:
         return fishers.size();
     }
 
-    // Returns the total number of fishermen in the world.
+    // Returns the total GDP.
     double getGDP() const {
         return GDP;
     }
 
-// Returns the number of unemployed fishermen.
+    // Returns the number of unemployed fishermen.
     int getUnemployedFishers() const {
-    int count = 0;
+        int count = 0;
         for (const auto &fisher : fishers) {
             if (!fisher->isEmployed())
                 count++;
+        }
+        return count;
     }
-    return count;
-}
-
 
     void addFisherMan(std::shared_ptr<FisherMan> f) {
         fishers.push_back(f);
@@ -136,7 +135,7 @@ public:
         double clearingWage = jobMarket->getClearingWage();
         double dailyWage = 1.5 * clearingWage;
         int matches = jobMarket->getMatchedJobs();
-        // Only assign jobs to fishermen who are unemployed; do not reset employment status.
+        // Assign jobs to unemployed fishermen.
         for (auto &fisher : fishers) {
             if (!fisher->isEmployed() && matches > 0) {
                 fisher->setEmployed(true);
@@ -176,16 +175,21 @@ public:
         int unemployedCount = 0;
         for (const auto &fisher : fishers) {
             if (!fisher->isEmployed()) unemployedCount++;
-            }
+        }
         unemploymentRate = static_cast<double>(unemployedCount) / fishers.size();
 
-        
         static double prevFishPrice = fishingMarket->getClearingFishPrice();
         double currFishPrice = fishingMarket->getClearingFishPrice();
         inflation = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
         prevFishPrice = currFishPrice;
+
         
+       
+        
+        // Print the day's macroeconomic summary.
+        std::cout<< "-----------" << std::endl;
         std::cout << "Day " << currentCycle + 1 << " Summary:" << std::endl;
+        std::cout << "Population: " << getTotalFishers() << std::endl;
         std::cout << "  GDP: " << GDP << std::endl;
         std::cout << "  Unemployment Rate: " << unemploymentRate * 100 << "%" << std::endl;
         std::cout << "  Inflation: " << inflation * 100 << "%" << std::endl;
@@ -196,7 +200,6 @@ public:
         fishingMarket->reset();
     }
 
-    
     // Print overall world state.
     void printWorldState() const {
         std::cout << "=== World State at Day " << currentCycle << " ===" << std::endl;
