@@ -94,12 +94,17 @@ public:
         aggregateDemand = 0.0;
     }
 
-    virtual void print() const override {
-        std::cout << "Fishing Market State:" << std::endl;
-        Market::print();
-        std::cout << "Number of Fish Offerings: " << offerings.size() << std::endl;
-        std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
+   virtual void print() const override {
+    std::cout << "Fishing Market State:" << std::endl;
+    Market::print();
+    double totalFishProvided = 0.0;
+    for (const auto &offering : offerings) {
+        totalFishProvided += offering.quantity;
     }
+    std::cout << "Total Fish Provided: " << totalFishProvided << std::endl;
+    std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
+}
+
 };
 
 #endif // FISHINGMARKET_H
