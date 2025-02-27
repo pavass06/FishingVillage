@@ -59,6 +59,26 @@
         "random": "cpp",
         "system_error": "cpp",
         "type_traits": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "__bits": "cpp",
+        "__config": "cpp",
+        "__debug": "cpp",
+        "__errc": "cpp",
+        "__mutex_base": "cpp",
+        "__nullptr": "cpp",
+        "__string": "cpp",
+        "__tuple": "cpp",
+        "chrono": "cpp",
+        "compare": "cpp",
+        "memory": "cpp",
+        "bit": "cpp",
+        "charconv": "cpp",
+        "condition_variable": "cpp",
+        "span": "cpp",
+        "functional": "cpp",
+        "memory_resource": "cpp",
+        "utility": "cpp",
+        "text_encoding": "cpp",
+        "thread": "cpp"
     }
 }

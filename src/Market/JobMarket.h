@@ -99,6 +99,7 @@ public:
     }
 
     virtual void print() const override {
+        std::cout<< "-----------" << std::endl;
         std::cout << "JobMarket State:" << std::endl;
         std::cout << "Aggregate Demand (Applications): " << aggregateDemand << std::endl;
         std::cout << "Aggregate Supply (Vacancies): " << aggregateSupply << std::endl;
