@@ -173,6 +173,10 @@ public:
             dailyGDP += firm->getRevenue();
         }
         GDP = dailyGDP;
+
+        for (auto &firm : firms) {
+            firm->resetSales(); // Ensure this method sets the firm's revenue back to 0.
+        }
         
         int unemployedCount = 0;
         for (const auto &fisher : fishers) {
