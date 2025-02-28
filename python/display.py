@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Load the CSV file
-df = pd.read_csv("/Users/avass/Documents/1SSE/Code/FishingVillage/data/simulation_summary.csv")
+df = pd.read_csv("https://raw.githubusercontent.com/pavass06/FishingVillage/refs/heads/main/data/simulation_summary.csv")
 
 # Compute GDP Growth as percentage change (first cycle set to 0)
 df['GDP Growth'] = df['GDP'].pct_change() * 100
