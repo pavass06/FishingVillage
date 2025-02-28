@@ -3,6 +3,7 @@
 #include <memory>
 #include <random>
 #include <ctime>
+#include <fstream>      // For file output
 #include "World.h"
 #include "FishingFirm.h"
 #include "FisherMan.h"
@@ -13,11 +14,11 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 10;          // Total simulation cycles (days)
-    int totalFisherMen = 100;     // Total number of fishermen
-    int totalFirms = 5;           // Total number of fishing firms
-    int initialEmployed = 90;     // Number of employed fishermen at start
-    double initialWage = 5.0;     // Base wage (here used as fish price input)
+    int totalCycles = 100;          // Total simulation cycles (days)
+    int totalFisherMen = 100;      // Total number of fishermen
+    int totalFirms = 5;            // Total number of fishing firms
+    int initialEmployed = 90;      // Number of employed fishermen at start
+    double initialWage = 5.0;      // Base wage (here used as fish price input)
 };
 
 // Simulation class encapsulating the simulation logic
@@ -140,12 +141,21 @@ public:
 
     // Run the simulation cycles
     void run() {
+        // Vectors to hold simulation data for summary output
         vector<double> GDPs;
         vector<double> unemploymentRates;
         vector<double> inflations;
         vector<double> gdpPerCapitas;  // GDP per capita for each cycle
         vector<int> populations;       // Population count for each cycle
 
+        // Open a CSV file for writing the simulation summary
+        ofstream summaryFile("simulation_summary.csv");
+        if (summaryFile.is_open()) {
+            summaryFile << "Cycle,GDP,Population,GDPperCapita,Unemployment,Inflation\n";
+        } else {
+            cerr << "Error: Unable to open file for writing summary data.\n";
+        }
+        
         // Simulation loop
         for (int day = 0; day < params.totalCycles; day++) {
             cout << "===== Day " << day + 1 << " =====" << endl;
@@ -204,9 +214,24 @@ public:
             // Update the distributions with the new means (standard deviations remain constant).
             firmPriceDist.param(std::normal_distribution<double>::param_type(currentOfferMean, 0.5));
             consumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
+            
+            // Write the day's summary data to the CSV file.
+            if (summaryFile.is_open()) {
+                summaryFile << day + 1 << ","
+                            << dailyGDP << ","
+                            << totalFishers << ","
+                            << perCapita << ","
+                            << dailyUnemploymentRate << ","
+                            << inflRate * 100  // Inflation as a percentage
+                            << "\n";
+            }
         }
         
-        // Output collected data (GDP, Population, etc.)
+        // Close the summary file.
+        if (summaryFile.is_open())
+            summaryFile.close();
+        
+        // Output collected data (GDP, Population, etc.) to the console.
         cout << "GDP Values = [";
         for (size_t i = 0; i < GDPs.size(); i++) {
             cout << GDPs[i];
