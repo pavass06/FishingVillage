@@ -13,7 +13,7 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 5;          // Total simulation cycles (days)
+    int totalCycles = 10;          // Total simulation cycles (days)
     int totalFisherMen = 100;     // Total number of fishermen
     int totalFirms = 5;           // Total number of fishing firms
     int initialEmployed = 90;     // Number of employed fishermen at start
