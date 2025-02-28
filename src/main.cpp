@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <memory>
 #include <random>
@@ -13,8 +14,8 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 5;          // Total simulation cycles (days)
-    int totalFisherMen = 100;     // Total number of fishermen
+    int totalCycles = 300;          // Total simulation cycles (days)
+    int totalFisherMen = 1000;     // Total number of fishermen
     int totalFirms = 5;           // Total number of fishing firms
     int initialEmployed = 90;     // Number of employed fishermen at start
     double initialWage = 5.0;     // Base wage (here used as fish price input)
@@ -234,6 +235,8 @@ public:
             if (i != gdpGrowth.size() - 1) cout << ", ";
         }
         cout << "]\n";
+
+
         
         cout << "GDP per Capita Values = [";
         for (size_t i = 0; i < gdpPerCapitas.size(); i++) {
@@ -255,12 +258,42 @@ public:
             if (i != inflations.size() - 1) cout << ", ";
         }
         cout << "]\n";
+
+        /// print to a file
+        exportVECToBinary(GDPs,"GDP_data.bin");
+       // exportVECToBinary(populations,"population_data.bin");
+
+
+
+    }
+
+    void exportVECToBinary(const vector<double>& GDPs, const string& filename) {
+        ofstream file(filename, ios::binary);
+    
+        if (!file) {
+            cerr << "Error: Could not open the file for writing!" << endl;
+            return;
+        }
+    
+        // Write the size of the vector first
+        size_t size = GDPs.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    
+        // Write the GDP values as binary data
+        file.write(reinterpret_cast<const char*>(GDPs.data()), size * sizeof(double));
+    
+        file.close();
+        cout << "VEC data exported successfully to " << filename << endl;
     }
 };
 
 int main() {
     SimulationParameters params;
     Simulation sim(params);
-    sim.run();
+    
+    sim.run();  // run cycle
+
+    // sim.save(); // save  sim data
+
     return 0;
 }
