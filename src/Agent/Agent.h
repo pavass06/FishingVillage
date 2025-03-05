@@ -22,6 +22,10 @@ public:
     // Pure virtual action function: to be defined in derived classes
     virtual void act() = 0;
 
+    virtual void setActive(bool active){
+        status = active ;
+    }
+
     // Update method: increments age and deactivates agent if age exceeds lifetime
     virtual void update() {
         age++;
