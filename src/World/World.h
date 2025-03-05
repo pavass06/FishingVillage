@@ -6,9 +6,10 @@
 #include <memory>
 #include <algorithm>
 #include <cstdlib>
-#include "FisherMan.h"    // Concrete subclass of Household.
-#include "Firm.h"         // FishingFirms derive from Firm.
-#include "FishingFirm.h"  // Needed so that generateGoodsOffering() is visible.
+#include <random>            // Needed for Poisson distribution
+#include "FisherMan.h"
+#include "Firm.h"
+#include "FishingFirm.h"
 #include "JobMarket.h"
 #include "FishingMarket.h"
 
@@ -16,7 +17,10 @@ class World {
 private:
     int currentCycle;         // Each cycle represents 1 day.
     int totalCycles;          // Total number of days.
-    double birthRate;         // Birth rate per day (0.1: ~1 new FisherMan every 10 days).
+
+    // We’ll treat this as an ANNUAL birth rate (2% = 0.02).
+    // The daily birth rate will be annualBirthRate / 365 in the actual cycle.
+    double annualBirthRate;
 
     std::vector<std::shared_ptr<FisherMan>> fishers;
     std::vector<std::shared_ptr<Firm>> firms;
@@ -27,16 +31,22 @@ private:
     double previousFishPrice; // For inflation calculations
 
     double GDP;
-    double unemploymentRate;  // Total unemployed / Total FisherMen.
-    double inflation;         // Percentage change in fish market clearing price.
+    double unemploymentRate;  // Total unemployed / total fishermen
+    double inflation;         // Percentage change in fish market clearing price
 
 public:
-    World(int cycles, double birthRate_,
+    // NOTE: We changed the constructor to accept an ANNUAL birth rate (e.g., 0.02).
+    World(int cycles, double annualBirthRate_,
           std::shared_ptr<JobMarket> jm, std::shared_ptr<FishingMarket> fm)
-        : currentCycle(0), totalCycles(cycles), birthRate(birthRate_),
-          jobMarket(jm), fishingMarket(fm),
+        : currentCycle(0),
+          totalCycles(cycles),
+          annualBirthRate(annualBirthRate_),
+          jobMarket(jm),
+          fishingMarket(fm),
           previousFishPrice(fm->getClearingFishPrice()),
-          GDP(0.0), unemploymentRate(0.0), inflation(0.0)
+          GDP(0.0),
+          unemploymentRate(0.0),
+          inflation(0.0)
     {}
 
     const std::vector<std::shared_ptr<FisherMan>>& getFishers() const {
@@ -57,8 +67,9 @@ public:
     int getUnemployedFishers() const {
         int count = 0;
         for (const auto &fisher : fishers) {
-            if (!fisher->isEmployed())
+            if (!fisher->isEmployed()) {
                 count++;
+            }
         }
         return count;
     }
@@ -73,57 +84,86 @@ public:
 
     // simulateCycle() accepts a random engine and distributions.
     void simulateCycle(std::default_random_engine &generator,
-                         std::normal_distribution<double> &firmPriceDist,
-                         std::uniform_int_distribution<int> &goodsQuantityDist,
-                         std::normal_distribution<double> &consumerPriceDist)
+                       std::normal_distribution<double> &firmPriceDist,
+                       std::uniform_int_distribution<int> &goodsQuantityDist,
+                       std::normal_distribution<double> &consumerPriceDist)
     {
         std::cout << "=== Day " << currentCycle + 1 << " ===" << std::endl;
         
-        // Process FisherMen: act and update.
+        // 1) Process FisherMen: act and update
         for (auto &fisher : fishers) {
-            if (fisher->isActive())
+            if (fisher->isActive()) {
                 fisher->act();
+            }
         }
         for (auto &fisher : fishers) {
-            if (fisher->isActive())
+            if (fisher->isActive()) {
                 fisher->update();
+            }
         }
+        // Remove inactive fishermen
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
-            [](const std::shared_ptr<FisherMan>& f){ return !f->isActive(); }),
+            [](const std::shared_ptr<FisherMan> &f){
+                return !f->isActive();
+            }),
             fishers.end());
         
-        // Process firms: act and update.
+        // 2) Process Firms: act and update
         for (auto &firm : firms) {
-            if (firm->isActive())
+            if (firm->isActive()) {
                 firm->act();
+            }
         }
         for (auto &firm : firms) {
-            if (firm->isActive())
+            if (firm->isActive()) {
                 firm->update();
+            }
         }
+        // Remove inactive firms
         firms.erase(std::remove_if(firms.begin(), firms.end(),
-            [](const std::shared_ptr<Firm>& f){ return !f->isActive(); }),
+            [](const std::shared_ptr<Firm> &f){
+                return !f->isActive();
+            }),
             firms.end());
         
-        // Population management: Birth new FisherMen.
-        for (int i = 0; i < 10; i++) {
-            double r = static_cast<double>(rand()) / RAND_MAX;
-            if (r < birthRate) {
+        // 3) Population management: Poisson-based daily births
+        {
+            // Convert 2% annual to daily (0.02 / 365 ~= 0.0000548)
+            double dailyBirthRate = annualBirthRate / 365.0;
+            // Lambda = dailyBirthRate * currentPopulation
+            int currentPopulation = static_cast<int>(fishers.size());
+            double lambda = dailyBirthRate * currentPopulation;
+
+            // Draw from Poisson(lambda)
+            std::poisson_distribution<int> poissonDist(lambda);
+            int newBirths = poissonDist(generator);
+
+            for (int i = 0; i < newBirths; i++) {
                 int newID = 1000 + fishers.size();
+                // For demonstration: these new fishers start with minimal or zero age/funds
                 std::shared_ptr<FisherMan> newFisher = std::make_shared<FisherMan>(
-                    newID, 1000.0, 80, 0.0, 0.0, 1.0, 1.0, false, 0.0, 0.0, "fishing", 1, 1, 1
+                    newID,         // ID
+                    0,         // Initial funds (arbitrary)
+                    365 * 60,      // Lifespan in days, e.g. 60 years (example)
+                    0.0,           // Income
+                    0.0,           // Savings
+                    1.0,           // Job demand
+                    1.0,           // Goods demand
+                    false,         // Employed
+                    0.0,           // Wage
+                    0.0,           // Unemployment benefit
+                    "fishing",     // Sector
+                    1, 1, 1        // Education, Experience, Preference
                 );
                 addFisherMan(newFisher);
             }
         }
-        
-        // --- JOB MARKET PROCESS ---
-        // Each firm submits its job posting.
+
+        // 4) Job market process
         for (auto &firm : firms) {
             JobPosting posting = firm->generateJobPosting("fishing", 1, 1, 1);
             jobMarket->submitJobPosting(posting);
         }
-        // Only unemployed fishermen submit job applications.
         for (auto &fisher : fishers) {
             if (!fisher->isEmployed()) {
                 JobApplication app = fisher->generateJobApplication();
@@ -134,7 +174,6 @@ public:
         double clearingWage = jobMarket->getClearingWage();
         double dailyWage = 1.5 * clearingWage;
         int matches = jobMarket->getMatchedJobs();
-        // Assign jobs to unemployed fishermen.
         for (auto &fisher : fishers) {
             if (!fisher->isEmployed() && matches > 0) {
                 fisher->setEmployed(true);
@@ -144,15 +183,13 @@ public:
         }
         jobMarket->print();
         
-        // --- FISHING MARKET PROCESS ---
+        // 5) Fishing market process
         for (auto &firm : firms) {
             double newPrice = firmPriceDist(generator);
             firm->setPriceLevel(newPrice);
             firm->setWageExpense(clearingWage);
-            // Assume firms are FishingFirm.
-            // Generate goods offering. The function should return an offering.
+            // Assume these are FishingFirms
             FishOffering offer = dynamic_cast<FishingFirm*>(firm.get())->generateGoodsOffering(2.0);
-            // Assign the issuing firm to the offering.
             offer.firm = std::dynamic_pointer_cast<FishingFirm>(firm);
             fishingMarket->submitFishOffering(offer);
         }
@@ -167,29 +204,38 @@ public:
         fishingMarket->clearMarket(generator);
         fishingMarket->print();
         
-        // --- MACROECONOMIC INDICATORS ---
+        // 6) Compute daily GDP (sum of firm revenues)
         double dailyGDP = 0.0;
         for (auto &firm : firms) {
             dailyGDP += firm->getRevenue();
         }
         GDP = dailyGDP;
 
+        // Reset sales for next cycle
         for (auto &firm : firms) {
-            firm->resetSales(); // Ensure this method sets the firm's revenue back to 0.
+            firm->resetSales();
         }
         
+        // 7) Unemployment Rate
         int unemployedCount = 0;
         for (const auto &fisher : fishers) {
-            if (!fisher->isEmployed()) unemployedCount++;
+            if (!fisher->isEmployed()) {
+                unemployedCount++;
+            }
         }
-        unemploymentRate = static_cast<double>(unemployedCount) / fishers.size();
+        unemploymentRate = (fishers.size() > 0)
+                           ? static_cast<double>(unemployedCount) / fishers.size()
+                           : 0.0;
 
+        // 8) Inflation
         static double prevFishPrice = fishingMarket->getClearingFishPrice();
         double currFishPrice = fishingMarket->getClearingFishPrice();
-        inflation = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
+        inflation = (prevFishPrice > 0.0)
+                    ? (currFishPrice - prevFishPrice) / prevFishPrice
+                    : 0.0;
         prevFishPrice = currFishPrice;
 
-        // Print the day's macroeconomic summary.
+        // Print the day's macro summary
         std::cout << "-----------" << std::endl;
         std::cout << "Day " << currentCycle + 1 << " Summary:" << std::endl;
         std::cout << "Population: " << getTotalFishers() << std::endl;

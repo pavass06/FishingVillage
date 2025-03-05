@@ -61,7 +61,7 @@ public:
           // Pass initial wage, fish price = 5.0, and mean fish order = 1.5.
           jobMarket(make_shared<JobMarket>(p.initialWage, 5.0, 1.5)),
           fishingMarket(make_shared<FishingMarket>(5.0)), // initial fish price = 5.0
-          world(p.totalCycles, 0.1, jobMarket, fishingMarket),
+          world(p.totalCycles, 0.02, jobMarket, fishingMarket), // initial birthrate = 0.02
           generator(static_cast<unsigned int>(time(0))),
           firmFundsDist(100.0, 20.0),
           firmStockDist(50.0, 10.0),
