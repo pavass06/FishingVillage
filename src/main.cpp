@@ -15,7 +15,7 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 100;          // Total simulation cycles (days)
+    int totalCycles = 2000;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
@@ -79,7 +79,7 @@ public:
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);   // Draw funds from N(100, 20)
             double stock = firmStockDist(generator);     // Draw stock from N(50, 10)
-            int lifetime = 365;                          // Fixed firm lifetime (days)
+            int lifetime = 100000;                          // Fixed firm lifetime (days)
             double salesEff = 2.0;                       // Sales efficiency factor
             double jobMult = 0.05;                       // Job multiplier for vacancies
             double price = firmPriceDist(generator);     // Draw offered price from N(currentOfferMean, 0.5)
