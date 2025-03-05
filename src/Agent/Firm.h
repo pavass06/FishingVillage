@@ -17,18 +17,18 @@ struct SaleRecord {
 class Firm : public Agent {
 protected:
     int numberOfEmployees;    // Number of workers employed by the firm
-    double stock;             // Current product inventory
+    double stock;             // Current product inventory (in fish units)
     double priceLevel;        // Offered price per fish (e.g., ~6 pounds)
-    double salesEfficiency;   // α: Sales efficiency factor (units each employee can sell)
-    double jobPostMultiplier; // δ: Multiplier for number of job posts
+    double salesEfficiency;   // Sales efficiency factor (units each employee can sell)
+    double jobPostMultiplier; // Multiplier for number of job posts
     double wageExpense;       // Computed as numberOfEmployees * clearing wage
 
-    // New members for tracking actual sales.
-    double totalRevenue;                  // Accumulated revenue from actual sales
-    std::vector<SaleRecord> sales;        // List of individual sale transactions
+    // Tracking actual sales.
+    double totalRevenue;                  // Accumulated revenue from sales
+    std::vector<SaleRecord> sales;        // List of sale transactions
 
 public:
-    // Constructor with 8 parameters.
+    // Constructor with parameters.
     Firm(int id, double initFunds, int lifetime, int numberOfEmployees,
          double stock, double priceLevel,
          double salesEfficiency = 2.0, double jobPostMultiplier = 1.05)
@@ -44,19 +44,19 @@ public:
 
     virtual ~Firm() {}
 
-    // Revenue now comes from the accumulated sales, not from assumed production.
+    // Revenue is based on actual sales.
     virtual double calculateRevenue() const {
          return totalRevenue;
     }
 
-    // Add a sale transaction: update revenue and record the sale.
+    // Record a sale: update revenue and log the sale.
     void addSale(double salePrice, double quantity) {
          double saleValue = salePrice * quantity;
          totalRevenue += saleValue;
          sales.push_back({salePrice, quantity});
     }
 
-    // Reset the sales records and revenue (if needed, e.g., at the start/end of a cycle).
+    // Reset sales records and revenue.
     void resetSales() {
          totalRevenue = 0.0;
          sales.clear();
@@ -78,20 +78,22 @@ public:
          return profit * (1.0 - s);
     }
 
-    // New function to calculate the fish produced (potential output value)
+    // Modified calculateFishProduced() forces stock to be an integer (whole fish)
     virtual double calculateFishProduced() const {
          // Compute the quantity of fish produced as the minimum of the available stock and twice the number of employees.
          double fishQuantity = std::min(stock, 2.0 * static_cast<double>(numberOfEmployees));
          return fishQuantity * priceLevel;
     }
 
-    // In act(), revenue is now determined solely by actual sales recorded via addSale().
+    // In act(), revenue is determined solely by recorded sales.
     virtual void act() override {
          double invest = investmentExpenditure();
          stock += invest;
-         stock = std::max(stock, 0.0); // Ensure stock never goes negative.
+         // Ensure stock never goes negative.
+         stock = std::max(stock, 0.0);
+         // Update funds with revenue minus wage expenses.
          funds += calculateRevenue() - wageExpense;
-         // Optionally, you might want to reset sales here if tracking per cycle.
+         // Optionally, you might reset sales here if tracking per cycle.
          // resetSales();
     }
 
@@ -104,12 +106,12 @@ public:
          std::cout << "Employees: " << numberOfEmployees 
                    << " | Stock: " << stock 
                    << " | Price Level: " << priceLevel 
-                   << " | Sales Efficiency (α): " << salesEfficiency 
-                   << " | Job Post Multiplier (δ): " << jobPostMultiplier 
+                   << " | Sales Efficiency: " << salesEfficiency 
+                   << " | Job Post Multiplier: " << jobPostMultiplier 
                    << " | Wage Expense: " << wageExpense 
                    << " | Revenue: " << calculateRevenue() 
                    << " | Profit: " << calculateProfit() << std::endl;
-         std::cout << "Fish Produced (Potential Output Value): " << calculateFishProduced() << std::endl;
+         std::cout << "Fish Produced (Potential Output): " << calculateFishProduced() << std::endl;
          std::cout << "Sales Records:" << std::endl;
          for (const auto &record : sales) {
              std::cout << "  Price: " << record.salePrice 
@@ -135,7 +137,7 @@ public:
 
     virtual double getRevenue() const { return calculateRevenue(); }
     
-    // Pure virtual method so that derived classes must implement it.
+    // Pure virtual function; derived classes must implement it.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
 };
 

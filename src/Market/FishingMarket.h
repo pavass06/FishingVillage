@@ -2,15 +2,16 @@
 #define FISHINGMARKET_H
 
 #include "Market.h"
-#include "FishingFirm.h"  // La définition complète de FishingFirm est maintenant disponible.
+#include "FishingFirm.h"  // Complete definition of FishingFirm is now available.
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <iostream>
 #include <random>
 #include <memory>
+#include <unordered_map>   // for tracking individual purchases
 
-// La structure FishOffering est déjà définie si FISH_OFFERING_DEFINED est défini.
+// Structure for FishOffering (if not defined elsewhere)
 #ifndef FISH_OFFERING_DEFINED
 #define FISH_OFFERING_DEFINED
 struct FishOffering {
@@ -37,10 +38,14 @@ private:
     double aggregateSupply = 0.0;
     double aggregateDemand = 0.0;
     double matchedVolume;
+    
+    // NEW: Track individual purchases: fisherID -> totalQuantityBought in this cycle.
+    std::unordered_map<int, double> purchases;
 
 public:
     FishingMarket(double initialClearingPrice = 5.0)
-        : Market(initialClearingPrice), matchedVolume(0.0) {}
+        : Market(initialClearingPrice), matchedVolume(0.0)
+    {}
 
     virtual ~FishingMarket() {}
 
@@ -58,26 +63,41 @@ public:
         aggregateDemand += order.quantity;
     }
 
+    // NEW: Return a mapping of fisherID to total purchased quantity.
+    const std::unordered_map<int, double>& getPurchases() const {
+        return purchases;
+    }
+
     virtual void clearMarket(std::default_random_engine &generator) override {
+        // Clear the purchase tracking for this cycle.
+        purchases.clear();
+
         matchedVolume = 0.0;
         double sumTransactionValue = 0.0;
         double totalTransactionVolume = 0.0;
 
+        // Iterate through each order.
         for (auto &order : orders) {
+            // For each order, search for a matching offering.
             for (auto &off : offerings) {
                 if (order.desiredSector == off.productSector) {
-                    if (order.perceivedValue >= off.offeredPrice) {
-                        double transacted = std::min(order.quantity, off.quantity);
+                    // Check that the perceived price is high enough,
+                    // the order requests at least 1 unit, and the offering can satisfy the full order.
+                    if (order.perceivedValue >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
+                        // Discrete transaction for the entire requested quantity.
+                        double transacted = 1;
                         order.quantity -= transacted;
                         off.quantity -= transacted;
                         matchedVolume += transacted;
                         totalTransactionVolume += transacted;
                         sumTransactionValue += off.offeredPrice * transacted;
+                        // Record the purchase for this fisherman.
+                        purchases[order.id] += transacted;
                         if (off.firm) {
                             off.firm->addSale(off.offeredPrice, transacted);
                         }
-                        if (order.quantity <= 0)
-                            break;
+                        // Once the order is satisfied, move to the next order.
+                        break;
                     }
                 }
             }
@@ -90,12 +110,17 @@ public:
         aggregateDemand = 0.0;
     }
 
+    // NEW: Reset function to clear orders (and offerings) at the end of the cycle.
     virtual void reset() override {
+        // Call base class reset (if necessary).
         Market::reset();
+        // Clear the vectors so orders from previous cycles don't accumulate.
         offerings.clear();
         orders.clear();
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
+        // Optionally, reset matchedVolume.
+        matchedVolume = 0.0;
     }
 
     virtual void print() const override {

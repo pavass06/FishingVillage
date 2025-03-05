@@ -15,19 +15,25 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 2000;          // Total simulation cycles (days)
+    int totalCycles = 100;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
     double initialWage = 5.0;       // Base wage (here used as fish price input)
     double cycleScale = 365;        // Number of cycles per year (for time conversion)
+    int maxStarvingDays = 7;        // Number of days a fisherman can survive without eating
+    
+    // New parameters:
+    double annualBirthRate = 0.02;          // Annual birth rate (e.g., 2%)
+    double offeredPriceMean = 5.1;            // Mean of the offered price distribution
+    double perceivedPriceMean = 5.0;          // Mean of the perceived price distribution
 };
 
 // Simulation class encapsulating the simulation logic
 class Simulation {
 private:
     SimulationParameters params;
-    // Instantiate JobMarket with: initial wage, fish price = 5.0, and mean fish order = 1.5.
+    // Instantiate JobMarket with: initial wage, fish price = 5.0, and mean fish order = 1.
     shared_ptr<JobMarket> jobMarket;
     shared_ptr<FishingMarket> fishingMarket;
     World world;
@@ -42,12 +48,12 @@ private:
     std::normal_distribution<double> firmStockDist;   // N(50, 10)
 
     // Evolving means for offered and perceived prices
-    double currentOfferMean;     // Evolving mean for firm's offered price (starts at 6.0)
-    double currentPerceivedMean; // Evolving mean for consumer's perceived price (starts at 5.0)
+    double currentOfferMean;     // Evolving mean for firm's offered price
+    double currentPerceivedMean; // Evolving mean for consumer's perceived price
 
     // Distributions for firm offered price and consumer perceived price
-    std::normal_distribution<double> firmPriceDist;    // Initially N(6, 0.5)
-    std::normal_distribution<double> consumerPriceDist;  // Initially N(5, 0.8)
+    std::normal_distribution<double> firmPriceDist;    // Initially N(offeredPriceMean, 0.5)
+    std::normal_distribution<double> consumerPriceDist;  // Initially N(perceivedPriceMean, 0.8)
 
     // Other distributions remain the same
     std::normal_distribution<double> fisherLifetimeDist; // N(60, 5) in years
@@ -58,19 +64,20 @@ public:
     // Constructor: initialize simulation parameters, markets, and distributions
     Simulation(const SimulationParameters &p)
         : params(p),
-          // Pass initial wage, fish price = 5.0, and mean fish order = 1.5.
-          jobMarket(make_shared<JobMarket>(p.initialWage, 5.0, 1.5)),
+          // Initialize JobMarket with initial wage, fish price 5.0, and mean fish order 1.
+          jobMarket(make_shared<JobMarket>(p.initialWage, 5.0, 1)),
           fishingMarket(make_shared<FishingMarket>(5.0)), // initial fish price = 5.0
-          world(p.totalCycles, 0.02, jobMarket, fishingMarket), // initial birthrate = 0.02
+          // Pass annualBirthRate from parameters and maxStarvingDays.
+          world(params.totalCycles, params.annualBirthRate, jobMarket, fishingMarket, params.maxStarvingDays),
           generator(static_cast<unsigned int>(time(0))),
           firmFundsDist(100.0, 20.0),
           firmStockDist(50.0, 10.0),
-          // Initialize evolving means with base values
-          currentOfferMean(6.0),
-          currentPerceivedMean(5.0),
-          // Initialize the price distributions with these means
-          firmPriceDist(6.0, 0.5),
-          consumerPriceDist(5.0, 0.8),
+          // Initialize evolving means with values from parameters.
+          currentOfferMean(params.offeredPriceMean),
+          currentPerceivedMean(params.perceivedPriceMean),
+          // Initialize the price distributions with these means.
+          firmPriceDist(params.offeredPriceMean, 0.5),
+          consumerPriceDist(params.perceivedPriceMean, 0.8),
           fisherLifetimeDist(60.0, 5.0),
           fisherAgeDist(30.0, 10.0),
           goodsQuantityDist(1, 3)
@@ -78,8 +85,8 @@ public:
         // Initialize FishingFirms
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);   // Draw funds from N(100, 20)
-            double stock = firmStockDist(generator);     // Draw stock from N(50, 10)
-            int lifetime = 100000;                          // Fixed firm lifetime (days)
+            double stock = std::floor(firmStockDist(generator));  // Floor the stock to an integer
+            int lifetime = 100000;                       // Fixed firm lifetime (days)
             double salesEff = 2.0;                       // Sales efficiency factor
             double jobMult = 0.05;                       // Job multiplier for vacancies
             double price = firmPriceDist(generator);     // Draw offered price from N(currentOfferMean, 0.5)
@@ -92,9 +99,9 @@ public:
 
         // Initialize employed FisherMen
         for (int id = 0; id < params.initialEmployed; id++) {
-            // Convert lifetime from years to days by multiplying by 365
-            double age = fisherAgeDist(generator)* 365;       // Draw age from N(30, 10)
-            double lifetime = fisherLifetimeDist(generator) * 365; // Lifetime from N(60, 5)
+            // Convert age from years to days.
+            double age = fisherAgeDist(generator) * 365;  // Draw age from N(30, 10) in days
+            double lifetime = fisherLifetimeDist(generator) * 365; // Lifetime from N(60, 5) in days
             
             auto fisher = make_shared<FisherMan>(
                 id,               
@@ -118,8 +125,7 @@ public:
         
         // Initialize unemployed FisherMen
         for (int id = params.initialEmployed; id < params.totalFisherMen; id++) {
-            double age = fisherAgeDist(generator);
-            // Convert lifetime from years to days by multiplying by 365
+            double age = fisherAgeDist(generator) * 365;  // Optionally convert to days if needed
             double lifetime = fisherLifetimeDist(generator) * 365;
             
             auto fisher = make_shared<FisherMan>(
@@ -143,42 +149,41 @@ public:
         }
     }
 
-    // Run the simulation cycles
+    // Run the simulation cycles.
     void run() {
-        // Vectors to hold simulation data for summary output
+        // Vectors to hold simulation data for summary output.
         vector<double> GDPs;
         vector<double> unemploymentRates;
         vector<double> inflations;
-        vector<double> gdpPerCapitas;  // GDP per capita for each cycle
-        vector<int> populations;       // Population count for each cycle
-        // Additional vector for annual GDP values (accumulated sum of daily GDP for each full year or remaining days)
-        vector<double> cyclyGDPs;
+        vector<double> gdpPerCapitas;  // GDP per capita for each cycle.
+        vector<int> populations;       // Population count for each cycle.
+        vector<double> cyclyGDPs;      // Annual (or period) GDP accumulation.
 
-        // Open a CSV file for writing the simulation summary
+        // Open a CSV file for writing the simulation summary.
         ofstream summaryFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/simulation_summary.csv");
         if (summaryFile.is_open()) {
-            // Write header with additional columns for Year and AnnualGDP
+            // Write header with additional columns for Year and AnnualGDP.
             summaryFile << "Cycle,Year,DailyGDP,CyclyGDP,Population,GDPperCapita,Unemployment,Inflation\n";
         } else {
             cerr << "Error: Unable to open file for writing summary data.\n";
         }
         
-        double annualGDPAccumulator = 0.0;  // Accumulate daily GDP to compute annual GDP
+        double annualGDPAccumulator = 0.0;  // Accumulate daily GDP for annual aggregation.
         
-        // Simulation loop (each cycle represents one day)
+        // Simulation loop (each cycle represents one day).
         for (int day = 0; day < params.totalCycles; day++) {
-            int cycle = day + 1; // Cycle number (starting at 1)
-            double currentYear = cycle / params.cycleScale;  // Convert cycle to years (e.g., day 1 = 1/365 year)
+            int cycle = day + 1; // Cycle number (starting at 1).
+            double currentYear = cycle / params.cycleScale;  // Convert cycle to years.
             
             cout << "===== Day " << cycle << " (Year " << currentYear << ") =====" << endl;
             
-            // Run one simulation cycle using the current price distributions.
+            // Run one simulation cycle.
             world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
             
             // ---- Update JobMarket based on the latest fish market price ----
             double updatedFishPrice = fishingMarket->getClearingFishPrice();
             jobMarket->setCurrentFishPrice(updatedFishPrice);
-            jobMarket->clearMarket(generator);  // Recalculate the clearing wage
+            jobMarket->clearMarket(generator);  // Recalculate the clearing wage.
             
             // Retrieve the current population.
             int totalFishers = world.getTotalFishers();
@@ -191,7 +196,7 @@ public:
             // Accumulate daily GDP for annual aggregation.
             annualGDPAccumulator += dailyGDP;
             
-            // Calculate GDP per capita: dailyGDP divided by number of fishermen.
+            // Calculate GDP per capita.
             double perCapita = (totalFishers > 0) ? dailyGDP / totalFishers : 0.0;
             gdpPerCapitas.push_back(perCapita);
         
@@ -201,24 +206,24 @@ public:
                 (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
             unemploymentRates.push_back(dailyUnemploymentRate);
         
-            // Calculate inflation rate based on fish market clearing price.
+            // Calculate inflation rate.
             static double prevFishPrice = updatedFishPrice;
             double currFishPrice = fishingMarket->getClearingFishPrice();
             double inflRate = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
             inflations.push_back(inflRate);
             prevFishPrice = currFishPrice;
             
-            // --- Update the underlying price means (using adjustment factor) ---
+            // --- Update the underlying price means using adjustment factor ---
             double aggSupply = fishingMarket->getAggregateSupply();
             double aggDemand = fishingMarket->getAggregateDemand();
             double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
             double factor = 1.0;
             if (ratio > 1.0) {
-                // Demand exceeds supply: adjust factor from N(1.025, 0.005)
+                // Demand exceeds supply.
                 std::normal_distribution<double> adjustDist(1.025, 0.005);
                 factor = adjustDist(generator);
             } else if (ratio < 1.0) {
-                // Supply exceeds demand: adjust factor from N(0.975, 0.005)
+                // Supply exceeds demand.
                 std::normal_distribution<double> adjustDist(0.975, 0.005);
                 factor = adjustDist(generator);
             }
@@ -227,17 +232,16 @@ public:
             firmPriceDist.param(std::normal_distribution<double>::param_type(currentOfferMean, 0.5));
             consumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
             
-            // If a full year (365 days) has passed or it's the end of simulation, record the annual GDP.
+            // Record annual GDP if a full year has passed or at the end.
             if (cycle % static_cast<int>(params.cycleScale) == 0 || day == params.totalCycles - 1) {
                 cyclyGDPs.push_back(annualGDPAccumulator);
-                // Reset the accumulator for the next year.
                 annualGDPAccumulator = 0.0;
             }
             
-            // Write the day's summary data to the CSV file.
+            // Write day's summary data.
             if (summaryFile.is_open()) {
-                // For CyclyGDP, output the accumulated value only at the end of a year (or last day), otherwise output 0.
-                double cyclyGDPOutput = (cycle % static_cast<int>(params.cycleScale) == 0 || day == params.totalCycles - 1) ? cyclyGDPs.back() : 0.0;
+                double cyclyGDPOutput = (cycle % static_cast<int>(params.cycleScale) == 0 || day == params.totalCycles - 1)
+                                        ? cyclyGDPs.back() : 0.0;
                 summaryFile << cycle << ","
                             << currentYear << ","
                             << dailyGDP << ","
@@ -245,7 +249,7 @@ public:
                             << totalFishers << ","
                             << perCapita << ","
                             << dailyUnemploymentRate << ","
-                            << inflRate * 100  // Inflation expressed as a percentage
+                            << inflRate * 100  // Inflation as a percentage.
                             << "\n";
             }
         }
@@ -253,7 +257,7 @@ public:
         if (summaryFile.is_open())
             summaryFile.close();
         
-        // (Console output of collected data omitted for brevity)
+        // (Additional console output omitted for brevity)
     }
 };
 
@@ -261,7 +265,7 @@ int main() {
     SimulationParameters params;
     Simulation sim(params);
     sim.run();
-    // Run the Python script for visualization
+    // Run the Python script for visualization.
     system("/Users/avass/anaconda3/bin/python /Users/avass/Documents/1SSE/Code/FishingVillage/python/display.py");
     return 0;
 }

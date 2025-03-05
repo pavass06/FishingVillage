@@ -6,7 +6,8 @@
 #include <memory>
 #include <algorithm>
 #include <cstdlib>
-#include <random>            // Needed for Poisson distribution
+#include <random>
+#include <unordered_map>  // For tracking daysWithoutEat
 #include "FisherMan.h"
 #include "Firm.h"
 #include "FishingFirm.h"
@@ -15,12 +16,9 @@
 
 class World {
 private:
-    int currentCycle;         // Each cycle represents 1 day.
-    int totalCycles;          // Total number of days.
-
-    // We’ll treat this as an ANNUAL birth rate (2% = 0.02).
-    // The daily birth rate will be annualBirthRate / 365 in the actual cycle.
-    double annualBirthRate;
+    int currentCycle;        // Current simulation day
+    int totalCycles;         // Total simulation days
+    double annualBirthRate;  // Annual birth rate (e.g., 0.02 for 2%)
 
     std::vector<std::shared_ptr<FisherMan>> fishers;
     std::vector<std::shared_ptr<Firm>> firms;
@@ -28,16 +26,22 @@ private:
     std::shared_ptr<JobMarket> jobMarket;
     std::shared_ptr<FishingMarket> fishingMarket;
 
-    double previousFishPrice; // For inflation calculations
-
+    double previousFishPrice;  // For inflation calculation
     double GDP;
-    double unemploymentRate;  // Total unemployed / total fishermen
-    double inflation;         // Percentage change in fish market clearing price
+    double unemploymentRate;
+    double inflation;
+
+    int maxStarvingDays;  // Maximum consecutive days without eating before death
+    // Mapping: fisherID -> consecutive days without eating
+    std::unordered_map<int, int> daysWithoutEat;
 
 public:
-    // NOTE: We changed the constructor to accept an ANNUAL birth rate (e.g., 0.02).
-    World(int cycles, double annualBirthRate_,
-          std::shared_ptr<JobMarket> jm, std::shared_ptr<FishingMarket> fm)
+    // Constructor now accepts maxStarvingDays as a parameter.
+    World(int cycles,
+          double annualBirthRate_,
+          std::shared_ptr<JobMarket> jm,
+          std::shared_ptr<FishingMarket> fm,
+          int maxStarvingDays_)
         : currentCycle(0),
           totalCycles(cycles),
           annualBirthRate(annualBirthRate_),
@@ -46,24 +50,22 @@ public:
           previousFishPrice(fm->getClearingFishPrice()),
           GDP(0.0),
           unemploymentRate(0.0),
-          inflation(0.0)
+          inflation(0.0),
+          maxStarvingDays(maxStarvingDays_)
     {}
 
     const std::vector<std::shared_ptr<FisherMan>>& getFishers() const {
         return fishers;
     }
 
-    // Returns the total number of fishermen in the world.
     int getTotalFishers() const {
         return fishers.size();
     }
 
-    // Returns the total GDP.
     double getGDP() const {
         return GDP;
     }
 
-    // Returns the number of unemployed fishermen.
     int getUnemployedFishers() const {
         int count = 0;
         for (const auto &fisher : fishers) {
@@ -74,15 +76,17 @@ public:
         return count;
     }
 
+    // Adds a fisherman and initializes his starvation counter.
     void addFisherMan(std::shared_ptr<FisherMan> f) {
         fishers.push_back(f);
+        daysWithoutEat[f->getID()] = 0;
     }
 
     void addFirm(std::shared_ptr<Firm> f) {
         firms.push_back(f);
     }
 
-    // simulateCycle() accepts a random engine and distributions.
+    // simulateCycle() processes one simulation day.
     void simulateCycle(std::default_random_engine &generator,
                        std::normal_distribution<double> &firmPriceDist,
                        std::uniform_int_distribution<int> &goodsQuantityDist,
@@ -90,76 +94,65 @@ public:
     {
         std::cout << "=== Day " << currentCycle + 1 << " ===" << std::endl;
         
-        // 1) Process FisherMen: act and update
+        // 1) Process FisherMen: Call act() to credit wages, then update() for consumption and aging.
         for (auto &fisher : fishers) {
-            if (fisher->isActive()) {
-                fisher->act();
-            }
+            if (fisher->isActive())
+                fisher->act();   // Adds wage to funds
         }
         for (auto &fisher : fishers) {
-            if (fisher->isActive()) {
+            if (fisher->isActive())
                 fisher->update();
-            }
         }
-        // Remove inactive fishermen
+        // Remove fishermen who have become inactive (e.g., died or aged out).
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
-            [](const std::shared_ptr<FisherMan> &f){
+            [](const std::shared_ptr<FisherMan> &f) {
                 return !f->isActive();
             }),
             fishers.end());
         
-        // 2) Process Firms: act and update
+        // 2) Process Firms: Call act() and update(), then remove inactive ones.
         for (auto &firm : firms) {
-            if (firm->isActive()) {
+            if (firm->isActive())
                 firm->act();
-            }
         }
         for (auto &firm : firms) {
-            if (firm->isActive()) {
+            if (firm->isActive())
                 firm->update();
-            }
         }
-        // Remove inactive firms
         firms.erase(std::remove_if(firms.begin(), firms.end(),
-            [](const std::shared_ptr<Firm> &f){
+            [](const std::shared_ptr<Firm> &f) {
                 return !f->isActive();
             }),
             firms.end());
         
-        // 3) Population management: Poisson-based daily births
+        // 3) Population management: Create new fishermen using a Poisson distribution.
         {
-            // Convert 2% annual to daily (0.02 / 365 ~= 0.0000548)
             double dailyBirthRate = annualBirthRate / 365.0;
-            // Lambda = dailyBirthRate * currentPopulation
             int currentPopulation = static_cast<int>(fishers.size());
             double lambda = dailyBirthRate * currentPopulation;
-
-            // Draw from Poisson(lambda)
             std::poisson_distribution<int> poissonDist(lambda);
             int newBirths = poissonDist(generator);
-
             for (int i = 0; i < newBirths; i++) {
                 int newID = 1000 + fishers.size();
-                // For demonstration: these new fishers start with minimal or zero age/funds
-                std::shared_ptr<FisherMan> newFisher = std::make_shared<FisherMan>(
+                auto newFisher = std::make_shared<FisherMan>(
                     newID,         // ID
-                    0,         // Initial funds (arbitrary)
-                    365 * 60,      // Lifespan in days, e.g. 60 years (example)
-                    0.0,           // Income
+                    0.0,           // Initial funds
+                    365 * 60,      // Lifespan in days (e.g., 60 years)
+                    0.0,           // Income (unused)
                     0.0,           // Savings
                     1.0,           // Job demand
                     1.0,           // Goods demand
-                    false,         // Employed
-                    0.0,           // Wage
-                    0.0,           // Unemployment benefit
-                    "fishing",     // Sector
-                    1, 1, 1        // Education, Experience, Preference
+                    false,         // Initially unemployed
+                    0.0,           // Wage (will be set later)
+                    0.0,           // Unemployment benefit (omitted)
+                    "fishing",     // Job sector
+                    1, 1, 1        // Education, Experience, Job preference
                 );
                 addFisherMan(newFisher);
             }
         }
 
-        // 4) Job market process
+        // 4) Job market process: Firms post jobs; unemployed fishermen submit applications.
         for (auto &firm : firms) {
             JobPosting posting = firm->generateJobPosting("fishing", 1, 1, 1);
             jobMarket->submitJobPosting(posting);
@@ -182,13 +175,14 @@ public:
             }
         }
         jobMarket->print();
+        jobMarket->reset();
         
-        // 5) Fishing market process
+        // 5) Fishing market process: Firms submit fish offerings and fishermen submit orders.
         for (auto &firm : firms) {
             double newPrice = firmPriceDist(generator);
             firm->setPriceLevel(newPrice);
             firm->setWageExpense(clearingWage);
-            // Assume these are FishingFirms
+            // Generate an offering; parameter (e.g., 2.0) can be adjusted.
             FishOffering offer = dynamic_cast<FishingFirm*>(firm.get())->generateGoodsOffering(2.0);
             offer.firm = std::dynamic_pointer_cast<FishingFirm>(firm);
             fishingMarket->submitFishOffering(offer);
@@ -197,37 +191,36 @@ public:
             FishOrder order;
             order.id = fisher->getID();
             order.desiredSector = "fishing";
+            // Quantity is generated by goodsQuantityDist (expected to be an integer between 1 and 3).
             order.quantity = goodsQuantityDist(generator);
             order.perceivedValue = consumerPriceDist(generator);
             fishingMarket->submitFishOrder(order);
         }
         fishingMarket->clearMarket(generator);
         fishingMarket->print();
+        fishingMarket->reset();
         
-        // 6) Compute daily GDP (sum of firm revenues)
+        // 6) Compute daily GDP as the sum of firm revenues, then reset each firm's sales.
         double dailyGDP = 0.0;
         for (auto &firm : firms) {
             dailyGDP += firm->getRevenue();
         }
         GDP = dailyGDP;
-
-        // Reset sales for next cycle
         for (auto &firm : firms) {
             firm->resetSales();
         }
         
-        // 7) Unemployment Rate
+        // 7) Calculate the unemployment rate.
         int unemployedCount = 0;
         for (const auto &fisher : fishers) {
-            if (!fisher->isEmployed()) {
+            if (!fisher->isEmployed())
                 unemployedCount++;
-            }
         }
         unemploymentRate = (fishers.size() > 0)
                            ? static_cast<double>(unemployedCount) / fishers.size()
                            : 0.0;
 
-        // 8) Inflation
+        // 8) Calculate inflation based on changes in the fish market's clearing price.
         static double prevFishPrice = fishingMarket->getClearingFishPrice();
         double currFishPrice = fishingMarket->getClearingFishPrice();
         inflation = (prevFishPrice > 0.0)
@@ -235,7 +228,37 @@ public:
                     : 0.0;
         prevFishPrice = currFishPrice;
 
-        // Print the day's macro summary
+        // 9) Starvation Check:
+        // Retrieve the mapping of purchases (fisherID -> total fish bought) for this cycle.
+        std::unordered_map<int, double> purchases = fishingMarket->getPurchases();
+
+        // Update the starvation counter for each fisherman.
+        for (auto &fisher : fishers) {
+            int fID = fisher->getID();
+            if (purchases.find(fID) == purchases.end() || purchases[fID] < 1.0) {
+                // If the fisherman did not purchase at least 1 fish, increment his starvation counter.
+                daysWithoutEat[fID]++;
+            } else {
+                // Otherwise, reset the counter.
+                daysWithoutEat[fID] = 0;
+            }
+        }
+
+        // Mark fishermen as inactive if they exceed the maximum allowed days without eating.
+        for (auto &fisher : fishers) {
+            int fID = fisher->getID();
+            if (daysWithoutEat[fID] >= maxStarvingDays) {
+                fisher->setActive(false);
+            }
+        }
+        // Remove inactive fishermen.
+        fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
+            [](const std::shared_ptr<FisherMan>& f) {
+                return !f->isActive();
+            }),
+            fishers.end());
+
+        // Print the macro summary for the day.
         std::cout << "-----------" << std::endl;
         std::cout << "Day " << currentCycle + 1 << " Summary:" << std::endl;
         std::cout << "Population: " << getTotalFishers() << std::endl;
@@ -245,11 +268,11 @@ public:
         std::cout << "=====================================" << std::endl;
         
         currentCycle++;
+        // Reset the markets for the next cycle.
         jobMarket->reset();
         fishingMarket->reset();
     }
 
-    // Print overall world state.
     void printWorldState() const {
         std::cout << "=== World State at Day " << currentCycle << " ===" << std::endl;
         std::cout << "FisherMen: " << fishers.size() << std::endl;
