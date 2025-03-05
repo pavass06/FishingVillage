@@ -4,11 +4,11 @@
 #include "Firm.h"
 #include <algorithm>
 #include <iostream>
-#include <cmath>  // For std::ceil
+#include <cmath>      // For std::floor
 #include <memory>
 #include <string>
 
-// Si FishOffering n'est pas déjà défini, on le définit ici.
+// If FishOffering is not already defined, define it here.
 #ifndef FISH_OFFERING_DEFINED
 #define FISH_OFFERING_DEFINED
 struct FishOffering {
@@ -17,28 +17,29 @@ struct FishOffering {
     double cost;
     double offeredPrice;
     double quantity;
-    // Utilisation d'un shared_ptr pour pointer vers FishingFirm.
     std::shared_ptr<class FishingFirm> firm;
 };
 #endif
 
 class FishingFirm : public Firm {
 public:
-    // Le priceLevel est fixé à 6; le jobPostMultiplier est fixé à 0.05.
+    // Constructor: priceLevel is fixed at 6.0.
+    // We no longer use jobPostMultiplier.
     FishingFirm(int id, double initFunds, int lifetime, int numberOfEmployees,
                 double stock,
-                double salesEfficiency = 2.0, double jobPostMultiplier = 0.05)
-        : Firm(id, initFunds, lifetime, numberOfEmployees, stock, 6.0, salesEfficiency, jobPostMultiplier)
+                double salesEfficiency = 2.0)
+        : Firm(id, initFunds, lifetime, numberOfEmployees, stock, 6.0, salesEfficiency, 0.0)
     {}
 
     virtual ~FishingFirm() {}
 
-    // Retourne la quantité de poisson disponible à la vente.
+    // Return the quantity of fish available for sale.
     virtual double getGoodsSupply() const {
+        // Ensure only whole fish are considered.
         return std::min(stock, salesEfficiency * static_cast<double>(numberOfEmployees));
     }
 
-    // Génère une offre de poisson.
+    // Generate a fish offering.
     virtual FishOffering generateGoodsOffering(double cost) const {
         FishOffering offer;
         offer.id = getID();
@@ -46,19 +47,20 @@ public:
         offer.cost = cost;
         offer.offeredPrice = getPriceLevel();
         offer.quantity = getGoodsSupply();
-        // Le champ firm sera assigné par le code appelant (par exemple dans FishingMarket).
+        // The 'firm' field will be set externally.
         return offer;
     }
 
-    // Génère une offre d'emploi.
+    // Generate a job posting.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
         JobPosting posting;
         posting.firmID = getID();
-        posting.jobSector = sector; // Pour notre village, "fishing"
-        posting.educationRequirement = eduReq;  
-        posting.experienceRequirement = expReq; 
-        posting.attractiveness = attract;       
-        posting.vacancies = std::max(1, static_cast<int>(std::ceil(numberOfEmployees * jobPostMultiplier)));
+        posting.jobSector = sector; // For our village, this is "fishing"
+        posting.educationRequirement = eduReq;
+        posting.experienceRequirement = expReq;
+        posting.attractiveness = attract;
+        // Return a default vacancy count of 1.
+        posting.vacancies = 1;
         posting.recruiting = (posting.vacancies > 0);
         return posting;
     }

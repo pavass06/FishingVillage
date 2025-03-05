@@ -169,6 +169,7 @@ public:
         double clearingWage = jobMarket->getClearingWage();
         double dailyWage = 1.5 * clearingWage;
         int matches = jobMarket->getMatchedJobs();
+
         for (auto &fisher : fishers) {
             if (!fisher->isEmployed() && matches > 0) {
                 fisher->setEmployed(true);
@@ -178,6 +179,23 @@ public:
         }
         jobMarket->print();
         jobMarket->reset();
+
+        // NEW: Job Turnover Process
+        // Each employed fisherman quits with probability pQuit.
+        double pQuit = 0.05; // 1% chance to quit per day.
+        for (auto &fisher : fishers) {
+            if (fisher->isEmployed()) {
+                double r = static_cast<double>(rand()) / RAND_MAX;
+                if (r < pQuit) {
+                    fisher->setEmployed(false);
+                    // Optionally, print a debug message:
+                    // std::cout << "FisherMan " << fisher->getID() << " has quit his job." << std::endl;
+                }
+            }
+        }
+
+        
+
         
         // 5) Fishing market process: Firms submit fish offerings and fishermen submit orders.
         for (auto &firm : firms) {
