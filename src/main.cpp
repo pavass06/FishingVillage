@@ -15,13 +15,13 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 100;          // Total simulation cycles (days)
+    int totalCycles = 365;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
     double initialWage = 5.0;       // Base wage (here used as fish price input)
     double cycleScale = 365;        // Number of cycles per year (for time conversion)
-    int maxStarvingDays = 7;        // Number of days a fisherman can survive without eating
+    int maxStarvingDays = 3;        // Number of days a fisherman can survive without eating
     
     // New parameters:
     double annualBirthRate = 0.02;          // Annual birth rate (e.g., 2%)

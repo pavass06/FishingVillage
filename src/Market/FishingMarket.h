@@ -29,7 +29,11 @@ struct FishOrder {
     std::string desiredSector;
     double quantity;
     double perceivedValue;
+    bool hungry;            // true if the fisherman has not eaten for at least one day
+    double availableFunds;  // funds available at order creation
 };
+
+
 
 class FishingMarket : public Market {
 private:
@@ -69,23 +73,24 @@ public:
     }
 
     virtual void clearMarket(std::default_random_engine &generator) override {
-        // Clear the purchase tracking for this cycle.
-        purchases.clear();
+    // Clear the purchase tracking for this cycle.
+    purchases.clear();
 
-        matchedVolume = 0.0;
-        double sumTransactionValue = 0.0;
-        double totalTransactionVolume = 0.0;
+    matchedVolume = 0.0;
+    double sumTransactionValue = 0.0;
+    double totalTransactionVolume = 0.0;
 
-        // Iterate through each order.
-        for (auto &order : orders) {
-            // For each order, search for a matching offering.
-            for (auto &off : offerings) {
-                if (order.desiredSector == off.productSector) {
-                    // Check that the perceived price is high enough,
-                    // the order requests at least 1 unit, and the offering can satisfy the full order.
-                    if (order.perceivedValue >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
-                        // Discrete transaction for the entire requested quantity.
-                        double transacted = 1;
+    // Iterate through each order.
+    for (auto &order : orders) {
+        // For each order, search for a matching offering.
+        for (auto &off : offerings) {
+            if (order.desiredSector == off.productSector) {
+                // First check: if the fisherman is hungry.
+                if (order.hungry) {
+                    // Accept the offer if he has enough funds to pay the offered price,
+                    // regardless of his perceived price.
+                    if (order.availableFunds >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
+                        double transacted = order.quantity;  // transaction for the entire requested quantity
                         order.quantity -= transacted;
                         off.quantity -= transacted;
                         matchedVolume += transacted;
@@ -99,16 +104,32 @@ public:
                         // Once the order is satisfied, move to the next order.
                         break;
                     }
+                } else {
+                    // If not hungry, use the normal condition: perceived price must be high enough.
+                    if (order.perceivedValue >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
+                        double transacted = order.quantity;
+                        order.quantity -= transacted;
+                        off.quantity -= transacted;
+                        matchedVolume += transacted;
+                        totalTransactionVolume += transacted;
+                        sumTransactionValue += off.offeredPrice * transacted;
+                        purchases[order.id] += transacted;
+                        if (off.firm) {
+                            off.firm->addSale(off.offeredPrice, transacted);
+                        }
+                        break;
+                    }
                 }
             }
         }
-        
-        if (totalTransactionVolume > 0) {
-            clearingPrice = sumTransactionValue / totalTransactionVolume;
-        }
-        aggregateSupply = 0.0;
-        aggregateDemand = 0.0;
     }
+    
+    if (totalTransactionVolume > 0) {
+        clearingPrice = sumTransactionValue / totalTransactionVolume;
+    }
+    aggregateSupply = 0.0;
+    aggregateDemand = 0.0;
+}
 
     // NEW: Reset function to clear orders (and offerings) at the end of the cycle.
     virtual void reset() override {
