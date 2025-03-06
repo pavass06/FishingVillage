@@ -16,7 +16,7 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 10000;          // Total simulation cycles (days)
+    int totalCycles = 300000;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
@@ -25,7 +25,7 @@ struct SimulationParameters {
     
     // New parameters:
     double cycleScale = 365;        // Number of cycles per year (for time conversion)
-    int maxStarvingDays = 10;        // Number of days a fisherman can survive without eating
+    int maxStarvingDays = 20;        // Number of days a fisherman can survive without eating
     double annualBirthRate = 0.02;          // Annual birth rate (e.g., 2%)
     double offeredPriceMean = 5.1;          // Mean of the offered price distribution
     double perceivedPriceMean = 5.0;        // Mean of the perceived price distribution
@@ -86,7 +86,7 @@ public:
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);
             double stock = std::floor(firmStockDist(generator)); // Floor the stock to ensure whole fish.
-            int lifetime = 100000; // Firm lifetime (days)
+            int lifetime = 100000000; // Firm lifetime (days)
             double salesEff = 2.0;
             double jobMult = 0.05;
             double price = firmPriceDist(generator);
