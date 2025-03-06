@@ -10,8 +10,13 @@ CFLAGS= $(OPT_FLAGS) --std=c++17
 LFLAGS += -lstdc++
 
 ifeq ($(DEBUG),1)
- CFLAGS+= $(DBG_FLAGS) -Ddebug -g
+ CFLAGS+= $(DBG_FLAGS) -Ddebug -g -Dverbose
 endif 
+
+ifeq ($(VERBOSE),1)
+ CFLAGS+= -Dverbose
+endif 
+
 
 
 # Include paths for headers

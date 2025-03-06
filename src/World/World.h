@@ -94,8 +94,9 @@ public:
                        std::uniform_int_distribution<int> &goodsQuantityDist,
                        std::normal_distribution<double> &consumerPriceDist)
     {
+#if verbose==1
         std::cout << "=== Day " << currentCycle + 1 << " ===" << std::endl;
-        
+#endif
         // 1) Process FisherMen: Call act() to credit wages, then update() for consumption and aging.
         for (auto &fisher : fishers) {
             if (fisher->isActive())
@@ -264,6 +265,7 @@ public:
             fishers.end());
 
         // Print the macro summary for the day.
+#if verbose==1
         std::cout << "-----------" << std::endl;
         std::cout << "Day " << currentCycle + 1 << " Summary:" << std::endl;
         std::cout << "Population: " << getTotalFishers() << std::endl;
@@ -271,7 +273,7 @@ public:
         std::cout << "  Unemployment Rate: " << unemploymentRate * 100 << "%" << std::endl;
         std::cout << "  Inflation: " << inflation * 100 << "%" << std::endl;
         std::cout << "=====================================" << std::endl;
-        
+#endif 
         currentCycle++;
         // Reset the markets for the next cycle.
         jobMarket->reset();

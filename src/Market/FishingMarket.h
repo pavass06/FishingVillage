@@ -145,6 +145,7 @@ public:
     }
 
     virtual void print() const override {
+#if verbose==1
         std::cout << "-----------" << std::endl;
         std::cout << "Fishing Market State:" << std::endl;
         Market::print();
@@ -155,6 +156,7 @@ public:
         std::cout << "Matched Fish Volume: " << matchedVolume << std::endl;
         std::cout << "Total Fish Provided: " << totalFishProvided << std::endl;
         std::cout << "Number of Fish Orders: " << orders.size() << std::endl;
+#endif
     }
 };
 
