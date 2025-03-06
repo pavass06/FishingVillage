@@ -1,2 +1,4 @@
 *.o
 *.exe
+data/simulation_summary.csv
+.DS_Store
