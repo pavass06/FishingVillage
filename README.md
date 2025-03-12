@@ -45,7 +45,7 @@ Since all fishers share the same qualifications, job matching is straightforward
 
 ---
 
-## 5) The Class That Resets Data (World)
+## The Class That Resets Data (World)
 Finally, the **World** class orchestrates each daily cycle. It **resets** key variables, **clears** the fish price, monitors supply and demand, updates the population—applying births, deaths, and starvation—and then consolidates everything into economic indicators like **GDP**, **GDP per capita**, **unemployment**, and **inflation**. In essence, **World** unifies the other classes, ensuring that fishers, firms, and markets remain synchronized day by day.
 
 ---
@@ -53,6 +53,8 @@ Finally, the **World** class orchestrates each daily cycle. It **resets** key va
 ## Enumeration of All Initial Parameters for the Simulation
 For this economy, the following **initial parameters** are crucial:
 
+- **ageDistMean** and **ageDistVariance**: define the normal law $N(\text{ageDistMean},\,\text{ageDistVariance})$ for initial age distribution (e.g., mean=30, variance=20).  
+- **lifetimeDistMean** and **lifetimeDistVariance**: define the normal law $N(\text{lifetimeDistMean},\,\text{lifetimeDistVariance})$ for lifetime distribution (e.g., mean=60, variance=5).  
 - **totalCycles**: total number of simulated days (e.g., 300).  
 - **totalFisherMen**: total number of fishers (e.g., 100).  
 - **totalFirms**: total number of fishing firms (e.g., 5).  
