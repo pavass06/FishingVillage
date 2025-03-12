@@ -103,6 +103,7 @@ public:
 
     virtual void print() const override {
          Agent::print();
+#if verbose==1
          std::cout << "Employees: " << numberOfEmployees 
                    << " | Stock: " << stock 
                    << " | Price Level: " << priceLevel 
@@ -117,6 +118,7 @@ public:
              std::cout << "  Price: " << record.salePrice 
                        << " | Quantity: " << record.quantity << std::endl;
          }
+#endif
     }
 
     // Getters and setters.

@@ -99,6 +99,7 @@ public:
     }
 
     virtual void print() const override {
+#if verbose==1
         std::cout<< "-----------" << std::endl;
         std::cout << "JobMarket State:" << std::endl;
         std::cout << "Aggregate Demand (Applications): " << aggregateDemand << std::endl;
@@ -107,6 +108,7 @@ public:
         std::cout << "Matched Jobs: " << matchedJobs << std::endl;
         std::cout << "Total Postings: " << postings.size() 
                   << " | Total Applications: " << applications.size() << std::endl;
+#endif
     }
 
     int getMatchedJobs() const { return matchedJobs; }
