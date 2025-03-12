@@ -1,31 +1,30 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 
-# Load the CSV file
-df = pd.read_csv("../data/simulation_summary.csv")
-df.columns = df.columns.str.strip()  # clean up column names
+# Fixed file path (change if necessary)
+filepath = "/Users/avass/Documents/1SSE/Code/FishingVillage/data/economicdatas.csv"
 
-# Compute GDP Growth as percentage change
-df['GDP Growth'] = df['DailyGDP'].pct_change() * 100
-df['GDP Growth'].fillna(0, inplace=True)
+# Load the data and clean column names
+df = pd.read_csv(filepath)
+df.columns = df.columns.str.strip()  # Remove any extra spaces from column names
 
-df_red= df.iloc[::100, :]
+# Define the x-axis and y-axis parameters
+x_parameter = "Cycle"         # x-axis is always the cycle
+y_parameter = "Inflation"     # change this to "DailyGDP", "Population", etc.
 
-pop="Population"
-dailygdp="DailyGDP"
-inf="Inflation"
+# Downsampling configuration: use step=1 for full data, or change to e.g., 100 for every 100th row
+downsample_step = 1  # Change to 100, 10, etc. if you want to reduce the number of points
 
-###############################################################################
-# 2) Polpulation
-###############################################################################
-color_gdp = 'tab:blue'
-color_infl = 'tab:green'
+# Downsample the DataFrame if needed
+if downsample_step > 1:
+    df = df.iloc[::downsample_step, :]
 
-#plt.plot(df["Cycle"], df["Inflation"], label="inflation", linewidth=2)
-plt.plot(df_red["Cycle"], df_red[inf], label="inflation", linewidth=2)
-
-
-
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.plot(df[x_parameter], df[y_parameter], label=y_parameter, linewidth=2)
+plt.xlabel(x_parameter)
+plt.ylabel(y_parameter)
+plt.title(f"Time Series of {y_parameter}")
+plt.legend()
+plt.grid(True)
 plt.show()
-
