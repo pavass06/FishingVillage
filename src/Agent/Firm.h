@@ -18,7 +18,7 @@ class Firm : public Agent {
 protected:
     int numberOfEmployees;    // Number of workers employed by the firm
     double stock;             // Current product inventory (in fish units)
-    double priceLevel;        // Offered price per fish (e.g., ~6 pounds)
+    double priceLevel;        // Offered price per fish (e.g., ~5.1 pounds)
     double salesEfficiency;   // Sales efficiency factor (units each employee can sell)
     double jobPostMultiplier; // Multiplier for number of job posts
     double wageExpense;       // Computed as numberOfEmployees * clearing wage
