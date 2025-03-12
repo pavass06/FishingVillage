@@ -16,7 +16,7 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 300000;          // Total simulation cycles (days)
+    int totalCycles = 300;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
@@ -61,7 +61,7 @@ private:
 
     // Other distributions
     std::normal_distribution<double> fisherLifetimeDist; // N(60, 5) in years
-    std::normal_distribution<double> fisherAgeDist;      // N(30, 10)
+    std::normal_distribution<double> fisherAgeDist;      // N(30, 20)
     std::uniform_int_distribution<int> goodsQuantityDist; // Uniform between 1 and 3
 
 public:
@@ -79,7 +79,7 @@ public:
           firmPriceDist(params.offeredPriceMean, 0.5),
           consumerPriceDist(params.perceivedPriceMean, 0.8),
           fisherLifetimeDist(60.0, 5.0),
-          fisherAgeDist(30.0, 10.0),
+          fisherAgeDist(30.0, 20.0),
           goodsQuantityDist(1, 3)
     {
         // Initialize FishingFirms
@@ -134,7 +134,7 @@ public:
         vector<double> cyclyGDPs;
 
         // Open a CSV file for writing the simulation summary.
-        ofstream summaryFile("../data/simulation_summary.csv");
+        ofstream summaryFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/economicdatas.cvs");
         if (summaryFile.is_open()) {
             summaryFile << "Cycle,Year,DailyGDP,CyclyGDP,Population,GDPperCapita,Unemployment,Inflation\n";
         } else {
