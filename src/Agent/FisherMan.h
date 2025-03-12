@@ -45,13 +45,15 @@ public:
 
     virtual void print() const override {
         Household::print();
+#if verbose
         std::cout << "Employment: " << (employed ? "Employed" : "Unemployed")
                   << " | Wage: " << wage
                   << " | Job Sector: " << jobSector
                   << " | Fishing Skill (Edu Level): " << educationLevel 
                   << " | Experience Level: " << experienceLevel 
                   << " | Job Preference: " << jobPreference << std::endl;
-    }
+#endif
+}
 
     // Getters and Setters for job-specific attributes:
     std::string getJobSector() const { return jobSector; }

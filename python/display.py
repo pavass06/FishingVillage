@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Load the CSV file
-df = pd.read_csv("/Users/avass/Documents/1SSE/Code/FishingVillage/data/simulation_summary.csv")
+df = pd.read_csv("../data/simulation_summary.csv")
 df.columns = df.columns.str.strip()  # clean up column names
 
 # Compute GDP Growth as percentage change

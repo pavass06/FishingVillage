@@ -5,6 +5,7 @@
 #include <ctime>
 #include <cstdlib> // Required for system()
 #include <fstream> // For file output
+#include <chrono>
 #include "World.h"
 #include "FishingFirm.h"
 #include "FisherMan.h"
@@ -15,7 +16,7 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
-    int totalCycles = 10000;          // Total simulation cycles (days)
+    int totalCycles = 300000;          // Total simulation cycles (days)
     int totalFisherMen = 100;       // Total number of fishermen
     int totalFirms = 5;             // Total number of fishing firms
     int initialEmployed = 90;       // Number of employed fishermen at start
@@ -24,7 +25,7 @@ struct SimulationParameters {
     
     // New parameters:
     double cycleScale = 365;        // Number of cycles per year (for time conversion)
-    int maxStarvingDays = 10;        // Number of days a fisherman can survive without eating
+    int maxStarvingDays = 20;        // Number of days a fisherman can survive without eating
     double annualBirthRate = 0.02;          // Annual birth rate (e.g., 2%)
     double offeredPriceMean = 5.1;          // Mean of the offered price distribution
     double perceivedPriceMean = 5.0;        // Mean of the perceived price distribution
@@ -85,7 +86,7 @@ public:
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);
             double stock = std::floor(firmStockDist(generator)); // Floor the stock to ensure whole fish.
-            int lifetime = 100000; // Firm lifetime (days)
+            int lifetime = 100000000; // Firm lifetime (days)
             double salesEff = 2.0;
             double jobMult = 0.05;
             double price = firmPriceDist(generator);
@@ -132,7 +133,8 @@ public:
         vector<int> populations;
         vector<double> cyclyGDPs;
 
-        ofstream summaryFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/simulation_summary.csv");
+        // Open a CSV file for writing the simulation summary.
+        ofstream summaryFile("../data/simulation_summary.csv");
         if (summaryFile.is_open()) {
             summaryFile << "Cycle,Year,DailyGDP,CyclyGDP,Population,GDPperCapita,Unemployment,Inflation\n";
         } else {
@@ -143,11 +145,12 @@ public:
         
         // Simulation loop (each cycle represents one day).
         for (int day = 0; day < params.totalCycles; day++) {
-            int cycle = day + 1;
-            double currentYear = cycle / params.cycleScale;
-            
+            int cycle = day + 1; // Cycle number (starting at 1).
+            double currentYear = cycle / params.cycleScale;  // Convert cycle to years.
+
+#if verbose==1
             cout << "===== Day " << cycle << " (Year " << currentYear << ") =====" << endl;
-            
+#endif
             // Run one simulation cycle.
             world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
             
@@ -246,8 +249,29 @@ public:
 int main() {
     SimulationParameters params;
     Simulation sim(params);
+
+    std::cout << " BEGIN program ... " << std::endl;
+    std::cout << "   days to simulate = " << params.totalCycles << std::endl;
+    std::cout << "   initial number of fisherman = " << params.totalFisherMen << std::endl;
+    std::cout << "   initial number of firms  = "    << params.totalFirms << std::endl;
+    std::cout << " -------------------------- "    << std::endl;
+    auto start = std::chrono::high_resolution_clock::now();
+
     sim.run();
     // Run the Python script for visualization.
-    system("/Users/avass/anaconda3/bin/python /Users/avass/Documents/1SSE/Code/FishingVillage/python/display.py");
+    //system("/Users/avass/anaconda3/bin/python /Users/avass/Documents/1SSE/Code/FishingVillage/python/display.py");
+    
+    
+    
+    std::cout << "  ... END program  " << std::endl;
+    std::cout << " -------------------------- "    << std::endl;
+
+    // Stop the timer and calculate duration
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = stop - start;
+    // Display time in seconds
+    std::cout << "elapsed time: " << elapsed.count() << " seconds" << std::endl;
+
+
     return 0;
 }
