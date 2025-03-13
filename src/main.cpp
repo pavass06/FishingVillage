@@ -6,6 +6,7 @@
 #include <cstdlib> // Required for system()
 #include <fstream> // For file output
 #include <chrono>
+#include <cmath>
 #include "World.h"
 #include "FishingFirm.h"
 #include "FisherMan.h"
@@ -16,28 +17,45 @@ using namespace std;
 
 // Simulation parameters structure
 struct SimulationParameters {
+    // Basic simulation parameters
     int totalCycles = 300;          // Total simulation cycles (days)
-    int totalFisherMen = 100;       // Total number of fishermen
-    int totalFirms = 5;             // Total number of fishing firms
-    int initialEmployed = 90;       // Number of employed fishermen at start
-    double initialWage = 5.0;       // Base wage (here used as fish price input)
-    
-    
-    // New parameters:
-    double cycleScale = 365;        // Number of cycles per year (for time conversion)
-    int maxStarvingDays = 20;        // Number of days a fisherman can survive without eating
-    double annualBirthRate = 0.02;          // Annual birth rate (e.g., 2%)
-    double offeredPriceMean = 5.1;          // Mean of the offered price distribution
-    double perceivedPriceMean = 5.0;        // Mean of the perceived price distribution
-    int totalJobOffers = 10;                // Total job offers available per day (across all companies)
-    double pQuit = 0.10;                    // 10% chance per day that an employed fisherman quits
+    int totalFisherMen = 100;       // Total number of fishers
+
+    // Derived parameters (computed as a percentage of totalFisherMen)
+    double totalFirms = 0.08;                 // 8% of the population (at least 1 firm)
+    double initialEmployed = 0.90;            // 90% of the population
+    double totalJobOffers = 0.10;             // 10% of the population
+
+    double initialWage = 5.0;       // Baseline wage / fish price reference
+    double cycleScale = 365;        // Number of days per year
+    int maxStarvingDays = 5;        // Number of consecutive days without fish before death
+    double annualBirthRate = 0.02;  // Annual birth rate (e.g., 2%)
+    double offeredPriceMean = 5.1;  // Mean offered price by firms at start
+    double perceivedPriceMean = 5.0;// Mean perceived price by consumers at start
+    double pQuit = 0.10;            // Daily probability that an employed fisher quits
+    double employeeEfficiency = 2.0; // How many fish a single fisher catches per day
+
+
+    // Parameters for population distributions
+    double ageDistMean = 30.0;      // Mean for initial age distribution
+    double ageDistVariance = 20.0;  // Variance for age distribution
+    double lifetimeDistMean = 60.0; // Mean for lifetime distribution
+    double lifetimeDistVariance = 5.0;// Variance for lifetime distribution
+
+    // Constructor computes derived parameters as integer percentages of totalFisherMen
+    SimulationParameters() {
+        totalFirms = static_cast<int>(totalFirms * totalFisherMen);
+        if(totalFirms < 1) totalFirms = 1;
+        initialEmployed = static_cast<int>(initialEmployed * totalFisherMen);
+        totalJobOffers = static_cast<int>(totalJobOffers * totalFisherMen);
+    }
 };
 
 // Simulation class encapsulating the simulation logic
 class Simulation {
 private:
     SimulationParameters params;
-    // Instantiate JobMarket with: initial wage, fish price = 5.0, and mean fish order = 1.
+    // Instantiate markets and world
     shared_ptr<JobMarket> jobMarket;
     shared_ptr<FishingMarket> fishingMarket;
     World world;
@@ -47,9 +65,10 @@ private:
     // Random number generator
     default_random_engine generator;
 
-    // Normal distributions for firm funds and stock
+    // Normal distributions for firm funds and stock (unused now for stock)
     std::normal_distribution<double> firmFundsDist; // N(100, 20)
-    std::normal_distribution<double> firmStockDist;   // N(50, 10)
+    // The initial stock is now computed by a rule instead of a random distribution:
+    // std::normal_distribution<double> firmStockDist; // Removed for initial stock
 
     // Evolving means for offered and perceived prices
     double currentOfferMean;     // Evolving mean for firm's offered price
@@ -59,45 +78,49 @@ private:
     std::normal_distribution<double> firmPriceDist;    // Initially N(offeredPriceMean, 0.5)
     std::normal_distribution<double> consumerPriceDist;  // Initially N(perceivedPriceMean, 0.8)
 
-    // Other distributions
-    std::normal_distribution<double> fisherLifetimeDist; // N(60, 5) in years
-    std::normal_distribution<double> fisherAgeDist;      // N(30, 20)
+    // Distributions for fisher lifetime and age
+    std::normal_distribution<double> fisherLifetimeDist; // N(lifetimeDistMean, lifetimeDistVariance)
+    std::normal_distribution<double> fisherAgeDist;      // N(ageDistMean, ageDistVariance)
     std::uniform_int_distribution<int> goodsQuantityDist; // Uniform between 1 and 3
 
 public:
     // Constructor: initialize simulation parameters, markets, and distributions
     Simulation(const SimulationParameters &p)
         : params(p),
-          jobMarket(make_shared<JobMarket>(p.initialWage, 5.0, 1)),
-          fishingMarket(make_shared<FishingMarket>(5.0)),
-          world(params.totalCycles, params.annualBirthRate, jobMarket, fishingMarket, params.maxStarvingDays),
+          jobMarket(make_shared<JobMarket>(p.initialWage, p.perceivedPriceMean, 1)),
+          fishingMarket(make_shared<FishingMarket>(p.perceivedPriceMean)),
+          world(p.totalCycles, p.annualBirthRate, jobMarket, fishingMarket, p.maxStarvingDays),
           generator(static_cast<unsigned int>(time(0))),
           firmFundsDist(100.0, 20.0),
-          firmStockDist(50.0, 10.0),
-          currentOfferMean(params.offeredPriceMean),
-          currentPerceivedMean(params.perceivedPriceMean),
-          firmPriceDist(params.offeredPriceMean, 0.5),
-          consumerPriceDist(params.perceivedPriceMean, 0.8),
-          fisherLifetimeDist(60.0, 5.0),
-          fisherAgeDist(30.0, 20.0),
+          currentOfferMean(p.offeredPriceMean),
+          currentPerceivedMean(p.perceivedPriceMean),
+          firmPriceDist(p.offeredPriceMean, 0.5),
+          consumerPriceDist(p.perceivedPriceMean, 0.8),
+          fisherLifetimeDist(p.lifetimeDistMean, p.lifetimeDistVariance),
+          fisherAgeDist(p.ageDistMean, p.ageDistVariance),
           goodsQuantityDist(1, 3)
     {
-        // Initialize FishingFirms
+        // Initialize FishingFirms with initialStock computed as population/numberFirms.
+        // Ensuring the stock is an integer.
+        int initialStock = params.totalFisherMen / params.totalFirms;
+        // Compute initial employees per firm as the integer part of (initialEmployed / totalFirms)
+        int initialEmployeesPerFirm = params.initialEmployed / params.totalFirms;
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);
-            double stock = std::floor(firmStockDist(generator)); // Floor the stock to ensure whole fish.
+            int stock = initialStock; // Updated rule: initialStock = population / numberFirms
             int lifetime = 100000000; // Firm lifetime (days)
-            double salesEff = 2.0;
-            double jobMult = 0.05;
-            double price = firmPriceDist(generator);
             
-            auto firm = make_shared<FishingFirm>(id, funds, lifetime, 18, stock, salesEff);
+            // Use the parameter for employee efficiency and the computed initial employees per firm.
+            double salesEff = params.employeeEfficiency;
+            // Replace the hardcoded "18" with the computed number of initial employees per firm:
+            auto firm = make_shared<FishingFirm>(id, funds, lifetime, initialEmployeesPerFirm, stock, salesEff);
+            double price = firmPriceDist(generator);
             firm->setPriceLevel(price);
             firms.push_back(firm);
             world.addFirm(firm);
         }
 
-        // Initialize employed FisherMen
+        // Initialize employed FisherMen (using 90% of totalFisherMen)
         for (int id = 0; id < params.initialEmployed; id++) {
             double age = fisherAgeDist(generator) * 365;
             double lifetime = fisherLifetimeDist(generator) * 365;
@@ -110,7 +133,7 @@ public:
             world.addFisherMan(fisher);
         }
         
-        // Initialize unemployed FisherMen
+        // Initialize unemployed FisherMen (remaining population)
         for (int id = params.initialEmployed; id < params.totalFisherMen; id++) {
             double age = fisherAgeDist(generator) * 365;
             double lifetime = fisherLifetimeDist(generator) * 365;
@@ -134,7 +157,7 @@ public:
         vector<double> cyclyGDPs;
 
         // Open a CSV file for writing the simulation summary.
-        ofstream summaryFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/economicdatas.cvs");
+        ofstream summaryFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/economicdatas.csv");
         if (summaryFile.is_open()) {
             summaryFile << "Cycle,Year,DailyGDP,CyclyGDP,Population,GDPperCapita,Unemployment,Inflation\n";
         } else {
@@ -145,8 +168,8 @@ public:
         
         // Simulation loop (each cycle represents one day).
         for (int day = 0; day < params.totalCycles; day++) {
-            int cycle = day + 1; // Cycle number (starting at 1).
-            double currentYear = cycle / params.cycleScale;  // Convert cycle to years.
+            int cycle = day + 1; // Cycle number (starting at 1)
+            double currentYear = cycle / params.cycleScale;  // Convert cycle to years
 
 #if verbose==1
             cout << "===== Day " << cycle << " (Year " << currentYear << ") =====" << endl;
@@ -160,23 +183,21 @@ public:
             jobMarket->clearMarket(generator);  // Recalculate clearing wage
             
             // --- JOB POSTING: Limit total job offers to params.totalJobOffers ---
-            // Calculate vacancies per firm:
-            int vacanciesPerFirm = std::max(1, params.totalJobOffers / params.totalFirms);
-            // Overwrite each firm's generated posting to use vacanciesPerFirm.
+            // Calculate vacancies per firm (ensuring an integer result):
+            int vacanciesPerFirm = std::max(1, static_cast<int>(params.totalJobOffers / params.totalFirms));
+            // For each firm, generate a job posting with the computed vacancies.
             for (auto &firm : firms) {
-                // Generate a posting using the firm's method.
                 JobPosting posting = firm->generateJobPosting("fishing", 1, 1, 1);
-                posting.vacancies = vacanciesPerFirm; // Force each firm to offer vacanciesPerFirm jobs.
+                posting.vacancies = vacanciesPerFirm;
                 jobMarket->submitJobPosting(posting);
             }
             
-            // Turnover: each employed fisherman quits with probability pQuit.
+            // Turnover: each employed fisher quits with probability pQuit.
             for (auto &fisher : fishers) {
                 if (fisher->isEmployed()) {
                     double r = static_cast<double>(rand()) / RAND_MAX;
                     if (r < params.pQuit) {
                         fisher->setEmployed(false);
-                        // Optionally: cout << "Fisher " << fisher->getID() << " quit his job." << endl;
                     }
                 }
             }
@@ -250,28 +271,23 @@ int main() {
     SimulationParameters params;
     Simulation sim(params);
 
-    std::cout << " BEGIN program ... " << std::endl;
-    std::cout << "   days to simulate = " << params.totalCycles << std::endl;
-    std::cout << "   initial number of fisherman = " << params.totalFisherMen << std::endl;
-    std::cout << "   initial number of firms  = "    << params.totalFirms << std::endl;
-    std::cout << " -------------------------- "    << std::endl;
-    auto start = std::chrono::high_resolution_clock::now();
+    cout << " BEGIN program ... " << endl;
+    cout << "   days to simulate = " << params.totalCycles << endl;
+    cout << "   initial number of fishers = " << params.totalFisherMen << endl;
+    cout << "   calculated number of firms = " << params.totalFirms << endl;
+    cout << " -------------------------- " << endl;
+    auto start = chrono::high_resolution_clock::now();
 
     sim.run();
-    // Run the Python script for visualization.
-    //system("/Users/avass/anaconda3/bin/python /Users/avass/Documents/1SSE/Code/FishingVillage/python/display.py");
+    // Optionally, call the Python script for visualization:
+    // system("/Users/avass/anaconda3/bin/python /Users/avass/Documents/1SSE/Code/FishingVillage/python/display.py");
     
-    
-    
-    std::cout << "  ... END program  " << std::endl;
-    std::cout << " -------------------------- "    << std::endl;
+    cout << "  ... END program  " << endl;
+    cout << " -------------------------- " << endl;
 
-    // Stop the timer and calculate duration
-    auto stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = stop - start;
-    // Display time in seconds
-    std::cout << "elapsed time: " << elapsed.count() << " seconds" << std::endl;
-
+    auto stop = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = stop - start;
+    cout << "elapsed time: " << elapsed.count() << " seconds" << endl;
 
     return 0;
 }
