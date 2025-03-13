@@ -71,29 +71,33 @@ public:
          return calculateRevenue() - wageExpense;
     }
 
-    virtual double investmentExpenditure() const {
-         double profit = calculateProfit();
-         if (profit <= 0)
-             return 0;
-         double s = static_cast<double>(rand()) / RAND_MAX;
-         return profit * (1.0 - s);
-    }
+   
+     virtual void updateStock() {
+          // Calculate the total fish sold today from recorded sales.
+          double sold = 0.0;
+          for (const auto &record : sales) {
+               sold += record.quantity;
+          }
+          // Compute remaining stock after sales.
+          double remainingStock = stock - sold;
+          // Production capacity: each employee can produce 2 fish per day.
+          double productionCapacity = 2.0 * numberOfEmployees;
+          // New stock is the sum of unsold fish and the produced fish.
+          stock = std::max(remainingStock + productionCapacity, 0.0);
+     }
 
-    // Modified calculateFishProduced() forces stock to be an integer (whole fish).
+
+    // Modified calculateFishProduced(): production is min(stock, 2 × numberOfEmployees).
     virtual double calculateFishProduced() const {
-         double fishQuantity = std::min(stock, 2.0 * static_cast<double>(numberOfEmployees));
-         return fishQuantity * priceLevel;
+         return std::min(stock, 2.0 * static_cast<double>(numberOfEmployees));
     }
 
-    // In act(), revenue is determined solely by recorded sales.
+    // In act(), we now update the stock using the updateStock() function.
     virtual void act() override {
-         double invest = investmentExpenditure();
-         stock += invest;
-         // Ensure stock never goes negative.
-         stock = std::max(stock, 0.0);
-         // Update funds with revenue minus wage expenses.
+         updateStock(); // Update stock based on profit reinvestment.
+         // Update funds: add revenue minus wage expenses.
          funds += calculateRevenue() - wageExpense;
-         // Optionally, reset sales here.
+         // Optionally, reset sales records.
          // resetSales();
     }
 
@@ -112,7 +116,7 @@ public:
                    << " | Wage Expense: " << wageExpense 
                    << " | Revenue: " << calculateRevenue() 
                    << " | Profit: " << calculateProfit() << std::endl;
-         std::cout << "Fish Produced (Potential Output): " << calculateFishProduced() << std::endl;
+         std::cout << "Fish Produced (Daily Output): " << calculateFishProduced() << std::endl;
          std::cout << "Sales Records:" << std::endl;
          for (const auto &record : sales) {
              std::cout << "  Price: " << record.salePrice 
@@ -141,7 +145,6 @@ public:
     
     // Pure virtual function; derived classes must implement it.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
-
 };
 
 #endif // FIRM_H
