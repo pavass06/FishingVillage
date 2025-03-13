@@ -41,7 +41,7 @@ private:
     double aggregateDemand = 0.0;
     double matchedVolume;
     
-    // NEW: Track individual purchases: fisherID -> totalQuantityBought in this cycle.
+    // Track individual purchases: fisherID -> totalQuantityBought in this cycle.
     std::unordered_map<int, double> purchases;
 
 public:
@@ -55,17 +55,38 @@ public:
     double getAggregateSupply() const { return aggregateSupply; }
     double getAggregateDemand() const { return aggregateDemand; }
 
-    void submitFishOffering(const FishOffering& offering) {
-        offerings.push_back(offering);
-        aggregateSupply += offering.quantity;
+    // NEW: refreshSupply updates the supply by calling updateStock() on each firm,
+    // then calculating production using calculateFishProduced() and creating new offerings.
+    void refreshSupply(const std::vector<std::shared_ptr<FishingFirm>> &firms) {
+        offerings.clear();
+        aggregateSupply = 0.0;
+        for (auto &firm : firms) {
+            // Update the firm's stock based on its profit.
+            firm->updateStock();
+            // Compute the firm's production: production = min(stock, 2 × numberOfEmployees)
+            double production = firm->calculateFishProduced();
+            // Create a new FishOffering with the production quantity.
+            FishOffering offer;
+            offer.id = firm->getID(); // Assumes getID() is implemented.
+            offer.productSector = "fishing";
+            offer.cost = 0;           // Set as appropriate.
+            offer.offeredPrice = firm->getPriceLevel();
+            offer.quantity = production;
+            offer.firm = firm;
+            offerings.push_back(offer);
+            aggregateSupply += production;
+        }
+        // Debug: Print the updated aggregate supply.
+        std::cout << "DEBUG: Refreshed Aggregate Supply = " << aggregateSupply << std::endl;
     }
 
+    // Orders are still submitted as before.
     void submitFishOrder(const FishOrder& order) {
         orders.push_back(order);
         aggregateDemand += order.quantity;
     }
 
-    // Return mapping of fisherID to total purchased quantity.
+    // Return the mapping of fisherID to total purchased quantity.
     const std::unordered_map<int, double>& getPurchases() const {
         return purchases;
     }
@@ -73,27 +94,23 @@ public:
     virtual void clearMarket(std::default_random_engine &generator) override {
         // Clear purchase tracking from the previous cycle.
         purchases.clear();
-
         matchedVolume = 0.0;
         double sumTransactionValue = 0.0;
         double totalTransactionVolume = 0.0;
 
-        // --- DEBUG: Print out the aggregate demand and supply before matching ---
+        // --- DEBUG: Print out aggregate demand and supply before matching.
         std::cout << "DEBUG: Before matching, Aggregate Supply = " << aggregateSupply 
                   << ", Aggregate Demand = " << aggregateDemand << std::endl;
-        // In our simplified model, each fisher places an order for exactly 1 fish,
-        // so aggregateDemand should equal the number of fishers.
-        // AggregateSupply is the sum of all offered quantities from firms.
 
         // Process each order.
         for (auto &order : orders) {
-            // (Optionally force each order to have quantity 1, if not already)
+            // Force each order quantity to 1 (if not already).
             order.quantity = 1.0;
             for (auto &off : offerings) {
                 if (order.desiredSector == off.productSector) {
                     if (order.hungry) {
                         if (order.availableFunds >= off.offeredPrice && off.quantity >= order.quantity) {
-                            double transacted = order.quantity;  // Fulfill entire order.
+                            double transacted = order.quantity;
                             order.quantity -= transacted;
                             off.quantity -= transacted;
                             matchedVolume += transacted;
@@ -127,11 +144,10 @@ public:
         if (totalTransactionVolume > 0) {
             clearingPrice = sumTransactionValue / totalTransactionVolume;
         }
-        // Debug prints after matching.
         std::cout << "DEBUG: Matched Volume = " << matchedVolume << std::endl;
         std::cout << "DEBUG: New Clearing Price = " << clearingPrice << std::endl;
         
-        // Reset aggregates for next cycle.
+        // Reset aggregates for the next cycle.
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
     }
@@ -143,6 +159,10 @@ public:
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
         matchedVolume = 0.0;
+    }
+
+      void setAggregateDemand(double demand) {
+        aggregateDemand = demand;
     }
 
     virtual void print() const override {

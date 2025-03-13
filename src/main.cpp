@@ -139,19 +139,18 @@ SimulationParameters loadParameters(const string &filepath) {
 class Simulation {
 private:
     SimulationParameters params;
-    shared_ptr<JobMarket> jobMarket;
-    shared_ptr<FishingMarket> fishingMarket;
+    // Our firms vector is now stored here.
+    std::vector<std::shared_ptr<FishingFirm>> firms;
+    std::vector<std::shared_ptr<FisherMan>> fishers;
+    std::shared_ptr<JobMarket> jobMarket;
+    std::shared_ptr<FishingMarket> fishingMarket;
     World world;
-    vector<shared_ptr<FishingFirm>> firms;
-    vector<shared_ptr<FisherMan>> fishers;
     default_random_engine generator;
     std::normal_distribution<double> firmFundsDist; // e.g., N(100, 20)
     double currentOfferMean;
     double currentPerceivedMean;
     std::normal_distribution<double> firmPriceDist;    // e.g., N(offeredPriceMean, 0.5)
     std::normal_distribution<double> consumerPriceDist;  // e.g., N(perceivedPriceMean, 0.8)
-    std::normal_distribution<double> fisherLifetimeDist; // e.g., N(lifetimeDistMean, lifetimeDistVariance)
-    std::normal_distribution<double> fisherAgeDist;      // e.g., N(ageDistMean, ageDistVariance)
     std::uniform_int_distribution<int> goodsQuantityDist; // Uniform between 1 and 3
 
 public:
@@ -166,15 +165,11 @@ public:
           currentPerceivedMean(p.perceivedPriceMean),
           firmPriceDist(p.offeredPriceMean, 0.5),
           consumerPriceDist(p.perceivedPriceMean, 0.8),
-          fisherLifetimeDist(p.lifetimeDistMean, p.lifetimeDistVariance),
-          fisherAgeDist(p.ageDistMean, p.ageDistVariance),
           goodsQuantityDist(1, 3)
     {
-        // Compute initialStock as integer division: totalFisherMen / totalFirms.
+        // Build the firms vector.
         int initialStock = params.totalFisherMen / params.totalFirms;
-        // Compute initial employees per firm = initialEmployed / totalFirms.
         int initialEmployeesPerFirm = params.initialEmployed / params.totalFirms;
-
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);
             int stock = initialStock;
@@ -184,31 +179,31 @@ public:
             double price = firmPriceDist(generator);
             firm->setPriceLevel(price);
             firms.push_back(firm);
-            world.addFirm(firm);
+            // Optionally, also add firm to World if needed.
+            // world.addFirm(firm);
         }
+        // After constructing firms, pass the vector to World.
+        world.setFirms(firms);
 
-        // Create employed fishers.
+        // Build the fishers vector.
         for (int id = 0; id < params.initialEmployed; id++) {
-            double age = fisherAgeDist(generator) * 365;
-            double lifetime = fisherLifetimeDist(generator) * 365;
+            double age = 0;
+            double lifetime = 365 * 60; // for example, 60 years.
             auto fisher = make_shared<FisherMan>(
                 id, 0.0, lifetime, 0.0, 0.0, 1.0, 1.0, true,
                 params.initialWage, 0.0, "fishing", 1, 1, 1
             );
             fishers.push_back(fisher);
-            world.addFisherMan(fisher);
         }
-        
-        // Create unemployed fishers.
+        // Add unemployed fishers to complete the population.
         for (int id = params.initialEmployed; id < params.totalFisherMen; id++) {
-            double age = fisherAgeDist(generator) * 365;
-            double lifetime = fisherLifetimeDist(generator) * 365;
+            double age = 0;
+            double lifetime = 365 * 60;
             auto fisher = make_shared<FisherMan>(
                 id, 0.0, lifetime, 0.0, 0.0, 1.0, 1.0, false,
                 0.0, 0.0, "fishing", 1, 1, 1
             );
             fishers.push_back(fisher);
-            world.addFisherMan(fisher);
         }
     }
 
@@ -222,16 +217,22 @@ public:
             cerr << "Error: Unable to open file for writing summary data.\n";
 
         double annualGDPAccumulator = 0.0;
-        // For inflation, we need to remember the offered price mean from the previous day.
         double prevOfferMean = currentOfferMean;
+
+        // Declare consumerPriceDist locally (non-const) for use in orders.
+        std::normal_distribution<double> localConsumerPriceDist(params.perceivedPriceMean, 0.8);
 
         for (int day = 0; day < params.totalCycles; day++) {
             int cycle = day + 1;
             double currentYear = cycle / params.cycleScale;
-            world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, consumerPriceDist);
+
+            // Refresh supply via World.
+            world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, localConsumerPriceDist);
+
             double updatedFishPrice = fishingMarket->getClearingFishPrice();
             jobMarket->setCurrentFishPrice(updatedFishPrice);
             jobMarket->clearMarket(generator);
+
             int vacanciesPerFirm = std::max(1, static_cast<int>(params.totalJobOffers / params.totalFirms));
             for (auto &firm : firms) {
                 JobPosting posting = firm->generateJobPosting("fishing", 1, 1, 1);
@@ -254,7 +255,7 @@ public:
                 (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
             unemploymentRates.push_back(dailyUnemploymentRate);
 
-            // Retrieve market aggregates.
+            // Retrieve market aggregates and adjust price means.
             double aggSupply = fishingMarket->getAggregateSupply();
             double aggDemand = fishingMarket->getAggregateDemand();
             double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
@@ -266,14 +267,12 @@ public:
                 std::normal_distribution<double> adjustDist(params.meanDiminutionInflat, params.varianceDiminutionInflat);
                 factor = adjustDist(generator);
             }
-            // Update offered and perceived price means.
             double oldOfferMean = currentOfferMean;
             currentOfferMean *= factor;
             currentPerceivedMean *= factor;
             firmPriceDist.param(std::normal_distribution<double>::param_type(currentOfferMean, 0.5));
-            consumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
+            localConsumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
 
-            // Compute inflation as the relative change in offeredPriceMean.
             double inflRate = (oldOfferMean > 0) ? (currentOfferMean - oldOfferMean) / oldOfferMean : 0.0;
             inflations.push_back(inflRate);
 
@@ -291,12 +290,13 @@ public:
         if (summaryFile.is_open())
             summaryFile.close();
 
-        double aggSupply = fishingMarket->getAggregateSupply();
-        double aggDemand = fishingMarket->getAggregateDemand();
-        double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
-        cout << ": Aggregate Demand/Supply Ratio = " << ratio << endl;
-            }
+        double finalAggSupply = fishingMarket->getAggregateSupply();
+        double finalAggDemand = fishingMarket->getAggregateDemand();
+        double finalRatio = (finalAggSupply > 0) ? finalAggDemand / finalAggSupply : 1.0;
+        cout << "Final Aggregate Demand/Supply Ratio = " << finalRatio << endl;
+    }
 };
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main function.
