@@ -18,52 +18,74 @@
 
 using namespace std;
 
+
+
 //////////////////////////////////////////////////////////////////////////////////////////
-
-// Structure to hold all simulation parameters.
+// Structure to hold all simulation parameters, grouped logically.
 struct SimulationParameters {
+    // 1. Test Configuration & Global Settings
     int testColumn = 1;              // The test column to use (1 = Test1, 2 = Test2, etc.)
+    int totalCycles;                 // Total simulation cycles (days)
+    double cycleScale;               // Number of days per year
 
-    // Basic simulation parameters
-    int totalCycles;                // Total simulation cycles (days)
-    int totalFisherMen;             // Total number of fishers
+    // 2. Population & Demographic Management
+    int totalFisherMen;              // Total number of fishers
+    double annualBirthRate;          // Annual birth rate (e.g., 0.02 for 2%)
+    int maxStarvingDays;             // Consecutive days without fish before death
+    double ageDistMean;              // Mean for initial age distribution
+    double ageDistVariance;          // Variance for age distribution
+    double lifetimeDistMean;         // Mean for lifetime distribution
+    double lifetimeDistVariance;     // Variance for lifetime distribution
 
-    // Derived parameters (given as fractions to be multiplied by totalFisherMen)
-    double totalFirms;              // e.g. 0.08 means 8% of the population
-    double initialEmployed;         // e.g. 0.90 means 90% of the population
-    double totalJobOffers;          // e.g. 0.10 means 10% of the population
+    // 3. Derived Population Fractions
+    double totalFirms;               // e.g. 0.08 means 8% of the population (fraction)
+    double initialEmployed;          // e.g. 0.90 means 90% of the population (fraction)
+    double totalJobOffers;           // e.g. 0.10 means 10% of the population (fraction)
 
-    double initialWage;             // Baseline wage / fish price reference
-    double cycleScale;              // Number of days per year
-    int maxStarvingDays;            // Consecutive days without fish before death
-    double annualBirthRate;         // Annual birth rate (e.g., 0.02 for 2%)
-    double offeredPriceMean;        // Mean offered price by firms at start
-    double perceivedPriceMean;      // Mean perceived price by consumers at start
-    double pQuit;                   // Daily probability that an employed fisher quits
-    double employeeEfficiency;      // Fish caught per fisher per day
+    // 4. Economic Policy / Market Parameters
+    double initialWage;              // Baseline wage / fish price reference
+    double offeredPriceMean;         // Mean offered price by firms at start
+    double perceivedPriceMean;       // Mean perceived price by consumers at start
+    double pQuit;                    // Daily probability that an employed fisher quits
+    double employeeEfficiency;       // Fish caught per fisher per day
 
-    // Parameters for population distributions
-    double ageDistMean;             // Mean for initial age distribution
-    double ageDistVariance;         // Variance for age distribution
-    double lifetimeDistMean;        // Mean for lifetime distribution
-    double lifetimeDistVariance;    // Variance for lifetime distribution
+    // 5. Inflation Adjustment Parameters
+    double meanAugmentationInflat;     // Mean factor when demand > supply (e.g., 1.025)
+    double varianceAugmentationInflat;  // Variance for augmentation factor (e.g., 0.005)
+    double meanDiminutionInflat;       // Mean factor when supply > demand (e.g., 0.975)
+    double varianceDiminutionInflat;    // Variance for diminution factor (e.g., 0.005)
 };
 //////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions to trim whitespace.
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
 
-
-// Simple string splitting function (by a given delimiter)
+// Simple string splitting function (by a given delimiter).
 vector<string> split(const string &s, char delimiter) {
     vector<string> tokens;
     string token;
     istringstream tokenStream(s);
     while(getline(tokenStream, token, delimiter)) {
+        trim(token); // Remove extra whitespace.
         tokens.push_back(token);
     }
     return tokens;
 }
-
+//////////////////////////////////////////////////////////////////////////////////////////
 // Function to load simulation parameters from a CSV file.
-// testColumn is 1-based (1 means use the second token in each row, i.e., Test1).
+// The file is assumed to have a header and columns: Parameter, Test1, Test2, ... 
 SimulationParameters loadParameters(const string &filepath) {
     SimulationParameters params; // testColumn defaults to 1 (Test1)
     ifstream file(filepath);
@@ -72,35 +94,38 @@ SimulationParameters loadParameters(const string &filepath) {
         return params;
     }
     string line;
-    // Read header line (and ignore it).
+    // Read and discard header.
     getline(file, line);
     while (getline(file, line)) {
         vector<string> tokens = split(line, ',');
         if (tokens.size() < params.testColumn + 1)
-            continue; // Skip if the desired test column doesn't exist.
+            continue; // Skip if not enough columns.
         string paramName = tokens[0];
-        string paramValue = tokens[params.testColumn];  // Use the value from the chosen test column.
+        string paramValue = tokens[params.testColumn]; // Value from chosen test column.
 
-        // Assign values according to the parameter name.
         if (paramName == "totalCycles") params.totalCycles = stoi(paramValue);
-        else if (paramName == "totalFisherMen") params.totalFisherMen = stoi(paramValue);
-        else if (paramName == "totalFirms") params.totalFirms = stod(paramValue);
-        else if (paramName == "initialEmployed") params.initialEmployed = stod(paramValue);
-        else if (paramName == "totalJobOffers") params.totalJobOffers = stod(paramValue);
-        else if (paramName == "initialWage") params.initialWage = stod(paramValue);
         else if (paramName == "cycleScale") params.cycleScale = stod(paramValue);
-        else if (paramName == "maxStarvingDays") params.maxStarvingDays = stoi(paramValue);
+        else if (paramName == "totalFisherMen") params.totalFisherMen = stoi(paramValue);
         else if (paramName == "annualBirthRate") params.annualBirthRate = stod(paramValue);
-        else if (paramName == "offeredPriceMean") params.offeredPriceMean = stod(paramValue);
-        else if (paramName == "perceivedPriceMean") params.perceivedPriceMean = stod(paramValue);
-        else if (paramName == "pQuit") params.pQuit = stod(paramValue);
-        else if (paramName == "employeeEfficiency") params.employeeEfficiency = stod(paramValue);
+        else if (paramName == "maxStarvingDays") params.maxStarvingDays = stoi(paramValue);
         else if (paramName == "ageDistMean") params.ageDistMean = stod(paramValue);
         else if (paramName == "ageDistVariance") params.ageDistVariance = stod(paramValue);
         else if (paramName == "lifetimeDistMean") params.lifetimeDistMean = stod(paramValue);
         else if (paramName == "lifetimeDistVariance") params.lifetimeDistVariance = stod(paramValue);
+        else if (paramName == "totalFirms") params.totalFirms = stod(paramValue);
+        else if (paramName == "initialEmployed") params.initialEmployed = stod(paramValue);
+        else if (paramName == "totalJobOffers") params.totalJobOffers = stod(paramValue);
+        else if (paramName == "initialWage") params.initialWage = stod(paramValue);
+        else if (paramName == "offeredPriceMean") params.offeredPriceMean = stod(paramValue);
+        else if (paramName == "perceivedPriceMean") params.perceivedPriceMean = stod(paramValue);
+        else if (paramName == "pQuit") params.pQuit = stod(paramValue);
+        else if (paramName == "employeeEfficiency") params.employeeEfficiency = stod(paramValue);
+        else if (paramName == "meanAugmentationInflat") params.meanAugmentationInflat = stod(paramValue);
+        else if (paramName == "varianceAugmentationInflat") params.varianceAugmentationInflat = stod(paramValue);
+        else if (paramName == "meanDiminutionInflat") params.meanDiminutionInflat = stod(paramValue);
+        else if (paramName == "varianceDiminutionInflat") params.varianceDiminutionInflat = stod(paramValue);
     }
-    // Recompute derived parameters as integers.
+    // Convert fractional values into integer counts.
     params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
     if (params.totalFirms < 1)
         params.totalFirms = 1;
@@ -110,7 +135,7 @@ SimulationParameters loadParameters(const string &filepath) {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-// The Simulation class remains largely the same.
+// Simulation class encapsulating the simulation logic.
 class Simulation {
 private:
     SimulationParameters params;
@@ -125,8 +150,8 @@ private:
     double currentPerceivedMean;
     std::normal_distribution<double> firmPriceDist;    // e.g., N(offeredPriceMean, 0.5)
     std::normal_distribution<double> consumerPriceDist;  // e.g., N(perceivedPriceMean, 0.8)
-    std::normal_distribution<double> fisherLifetimeDist; // N(lifetimeDistMean, lifetimeDistVariance)
-    std::normal_distribution<double> fisherAgeDist;      // N(ageDistMean, ageDistVariance)
+    std::normal_distribution<double> fisherLifetimeDist; // e.g., N(lifetimeDistMean, lifetimeDistVariance)
+    std::normal_distribution<double> fisherAgeDist;      // e.g., N(ageDistMean, ageDistVariance)
     std::uniform_int_distribution<int> goodsQuantityDist; // Uniform between 1 and 3
 
 public:
@@ -147,13 +172,13 @@ public:
     {
         // Compute initialStock as integer division: totalFisherMen / totalFirms.
         int initialStock = params.totalFisherMen / params.totalFirms;
-        // Compute initial employees per firm as integer: initialEmployed / totalFirms.
+        // Compute initial employees per firm = initialEmployed / totalFirms.
         int initialEmployeesPerFirm = params.initialEmployed / params.totalFirms;
 
         for (int id = 100; id < 100 + params.totalFirms; id++) {
             double funds = firmFundsDist(generator);
             int stock = initialStock;
-            int lifetime = 100000000; // A very large number for firm lifetime.
+            int lifetime = 100000000; // Firm lifetime (days)
             double salesEff = params.employeeEfficiency;
             auto firm = make_shared<FishingFirm>(id, funds, lifetime, initialEmployeesPerFirm, stock, salesEff);
             double price = firmPriceDist(generator);
@@ -197,6 +222,9 @@ public:
             cerr << "Error: Unable to open file for writing summary data.\n";
 
         double annualGDPAccumulator = 0.0;
+        // For inflation, we need to remember the offered price mean from the previous day.
+        double prevOfferMean = currentOfferMean;
+
         for (int day = 0; day < params.totalCycles; day++) {
             int cycle = day + 1;
             double currentYear = cycle / params.cycleScale;
@@ -225,21 +253,30 @@ public:
             double dailyUnemploymentRate = (totalFishers > 0) ?
                 (static_cast<double>(unemployedFishers) / totalFishers) * 100.0 : 0.0;
             unemploymentRates.push_back(dailyUnemploymentRate);
-            static double prevFishPrice = updatedFishPrice;
-            double currFishPrice = fishingMarket->getClearingFishPrice();
-            double inflRate = (prevFishPrice > 0) ? (currFishPrice - prevFishPrice) / prevFishPrice : 0.0;
-            inflations.push_back(inflRate);
-            prevFishPrice = currFishPrice;
+
+            // Retrieve market aggregates.
             double aggSupply = fishingMarket->getAggregateSupply();
             double aggDemand = fishingMarket->getAggregateDemand();
             double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
-            double factor = (ratio > 1.0) ? std::normal_distribution<double>(1.025, 0.005)(generator)
-                                          : (ratio < 1.0) ? std::normal_distribution<double>(0.975, 0.005)(generator)
-                                                          : 1.0;
+            double factor = 1.0;
+            if (ratio > 1.0) {
+                std::normal_distribution<double> adjustDist(params.meanAugmentationInflat, params.varianceAugmentationInflat);
+                factor = adjustDist(generator);
+            } else if (ratio < 1.0) {
+                std::normal_distribution<double> adjustDist(params.meanDiminutionInflat, params.varianceDiminutionInflat);
+                factor = adjustDist(generator);
+            }
+            // Update offered and perceived price means.
+            double oldOfferMean = currentOfferMean;
             currentOfferMean *= factor;
             currentPerceivedMean *= factor;
             firmPriceDist.param(std::normal_distribution<double>::param_type(currentOfferMean, 0.5));
             consumerPriceDist.param(std::normal_distribution<double>::param_type(currentPerceivedMean, 0.8));
+
+            // Compute inflation as the relative change in offeredPriceMean.
+            double inflRate = (oldOfferMean > 0) ? (currentOfferMean - oldOfferMean) / oldOfferMean : 0.0;
+            inflations.push_back(inflRate);
+
             if (cycle % static_cast<int>(params.cycleScale) == 0 || day == params.totalCycles - 1) {
                 cyclyGDPs.push_back(annualGDPAccumulator);
                 annualGDPAccumulator = 0.0;
@@ -253,12 +290,18 @@ public:
         }
         if (summaryFile.is_open())
             summaryFile.close();
-    }
+
+        double aggSupply = fishingMarket->getAggregateSupply();
+        double aggDemand = fishingMarket->getAggregateDemand();
+        double ratio = (aggSupply > 0) ? aggDemand / aggSupply : 1.0;
+        cout << ": Aggregate Demand/Supply Ratio = " << ratio << endl;
+            }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
-
+// Main function.
 int main() {
+    // Load parameters from the CSV file.
     SimulationParameters params = loadParameters("/Users/avass/Documents/1SSE/Code/FishingVillage/data/initialparameters.csv");
     Simulation sim(params);
     cout << " BEGIN program ... " << endl;
@@ -266,10 +309,9 @@ int main() {
     cout << "   initial number of fishers = " << params.totalFisherMen << endl;
     cout << "   calculated number of firms = " << params.totalFirms << endl;
     cout << " -------------------------- " << endl;
-    
+
     auto start = chrono::high_resolution_clock::now();
     sim.run();
-    // Optionally, run visualization (e.g., via a Python script).
     cout << "  ... END program  " << endl;
     cout << " -------------------------- " << endl;
     

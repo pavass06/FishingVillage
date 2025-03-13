@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include "JobMarket.h"  // For JobPosting struct
+#include <random>       // For random distributions
 
 // Structure to record each sale transaction.
 struct SaleRecord {
@@ -78,9 +79,8 @@ public:
          return profit * (1.0 - s);
     }
 
-    // Modified calculateFishProduced() forces stock to be an integer (whole fish)
+    // Modified calculateFishProduced() forces stock to be an integer (whole fish).
     virtual double calculateFishProduced() const {
-         // Compute the quantity of fish produced as the minimum of the available stock and twice the number of employees.
          double fishQuantity = std::min(stock, 2.0 * static_cast<double>(numberOfEmployees));
          return fishQuantity * priceLevel;
     }
@@ -93,7 +93,7 @@ public:
          stock = std::max(stock, 0.0);
          // Update funds with revenue minus wage expenses.
          funds += calculateRevenue() - wageExpense;
-         // Optionally, you might reset sales here if tracking per cycle.
+         // Optionally, reset sales here.
          // resetSales();
     }
 
@@ -141,6 +141,7 @@ public:
     
     // Pure virtual function; derived classes must implement it.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
+
 };
 
 #endif // FIRM_H
