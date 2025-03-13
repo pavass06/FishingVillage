@@ -9,7 +9,7 @@
 #include <iostream>
 #include <random>
 #include <memory>
-#include <unordered_map>   // for tracking individual purchases
+#include <unordered_map>
 
 // Structure for FishOffering (if not defined elsewhere)
 #ifndef FISH_OFFERING_DEFINED
@@ -27,13 +27,11 @@ struct FishOffering {
 struct FishOrder {
     int id;
     std::string desiredSector;
-    double quantity;
+    double quantity;       // In our simplified model, each order should have quantity = 1.
     double perceivedValue;
-    bool hungry;            // true if the fisherman has not eaten for at least one day
-    double availableFunds;  // funds available at order creation
+    bool hungry;           // True if the fisherman has not eaten for at least one day.
+    double availableFunds; // Funds available when the order is created.
 };
-
-
 
 class FishingMarket : public Market {
 private:
@@ -67,80 +65,83 @@ public:
         aggregateDemand += order.quantity;
     }
 
-    // NEW: Return a mapping of fisherID to total purchased quantity.
+    // Return mapping of fisherID to total purchased quantity.
     const std::unordered_map<int, double>& getPurchases() const {
         return purchases;
     }
 
     virtual void clearMarket(std::default_random_engine &generator) override {
-    // Clear the purchase tracking for this cycle.
-    purchases.clear();
+        // Clear purchase tracking from the previous cycle.
+        purchases.clear();
 
-    matchedVolume = 0.0;
-    double sumTransactionValue = 0.0;
-    double totalTransactionVolume = 0.0;
+        matchedVolume = 0.0;
+        double sumTransactionValue = 0.0;
+        double totalTransactionVolume = 0.0;
 
-    // Iterate through each order.
-    for (auto &order : orders) {
-        // For each order, search for a matching offering.
-        for (auto &off : offerings) {
-            if (order.desiredSector == off.productSector) {
-                // First check: if the fisherman is hungry.
-                if (order.hungry) {
-                    // Accept the offer if he has enough funds to pay the offered price,
-                    // regardless of his perceived price.
-                    if (order.availableFunds >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
-                        double transacted = order.quantity;  // transaction for the entire requested quantity
-                        order.quantity -= transacted;
-                        off.quantity -= transacted;
-                        matchedVolume += transacted;
-                        totalTransactionVolume += transacted;
-                        sumTransactionValue += off.offeredPrice * transacted;
-                        // Record the purchase for this fisherman.
-                        purchases[order.id] += transacted;
-                        if (off.firm) {
-                            off.firm->addSale(off.offeredPrice, transacted);
+        // --- DEBUG: Print out the aggregate demand and supply before matching ---
+        std::cout << "DEBUG: Before matching, Aggregate Supply = " << aggregateSupply 
+                  << ", Aggregate Demand = " << aggregateDemand << std::endl;
+        // In our simplified model, each fisher places an order for exactly 1 fish,
+        // so aggregateDemand should equal the number of fishers.
+        // AggregateSupply is the sum of all offered quantities from firms.
+
+        // Process each order.
+        for (auto &order : orders) {
+            // (Optionally force each order to have quantity 1, if not already)
+            order.quantity = 1.0;
+            for (auto &off : offerings) {
+                if (order.desiredSector == off.productSector) {
+                    if (order.hungry) {
+                        if (order.availableFunds >= off.offeredPrice && off.quantity >= order.quantity) {
+                            double transacted = order.quantity;  // Fulfill entire order.
+                            order.quantity -= transacted;
+                            off.quantity -= transacted;
+                            matchedVolume += transacted;
+                            totalTransactionVolume += transacted;
+                            sumTransactionValue += off.offeredPrice * transacted;
+                            purchases[order.id] += transacted;
+                            if (off.firm) {
+                                off.firm->addSale(off.offeredPrice, transacted);
+                            }
+                            break;
                         }
-                        // Once the order is satisfied, move to the next order.
-                        break;
-                    }
-                } else {
-                    // If not hungry, use the normal condition: perceived price must be high enough.
-                    if (order.perceivedValue >= off.offeredPrice && order.quantity >= 1 && off.quantity >= order.quantity) {
-                        double transacted = order.quantity;
-                        order.quantity -= transacted;
-                        off.quantity -= transacted;
-                        matchedVolume += transacted;
-                        totalTransactionVolume += transacted;
-                        sumTransactionValue += off.offeredPrice * transacted;
-                        purchases[order.id] += transacted;
-                        if (off.firm) {
-                            off.firm->addSale(off.offeredPrice, transacted);
+                    } else {
+                        if (order.perceivedValue >= off.offeredPrice && off.quantity >= order.quantity) {
+                            double transacted = order.quantity;
+                            order.quantity -= transacted;
+                            off.quantity -= transacted;
+                            matchedVolume += transacted;
+                            totalTransactionVolume += transacted;
+                            sumTransactionValue += off.offeredPrice * transacted;
+                            purchases[order.id] += transacted;
+                            if (off.firm) {
+                                off.firm->addSale(off.offeredPrice, transacted);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
         }
+        
+        if (totalTransactionVolume > 0) {
+            clearingPrice = sumTransactionValue / totalTransactionVolume;
+        }
+        // Debug prints after matching.
+        std::cout << "DEBUG: Matched Volume = " << matchedVolume << std::endl;
+        std::cout << "DEBUG: New Clearing Price = " << clearingPrice << std::endl;
+        
+        // Reset aggregates for next cycle.
+        aggregateSupply = 0.0;
+        aggregateDemand = 0.0;
     }
-    
-    if (totalTransactionVolume > 0) {
-        clearingPrice = sumTransactionValue / totalTransactionVolume;
-    }
-    aggregateSupply = 0.0;
-    aggregateDemand = 0.0;
-}
 
-    // NEW: Reset function to clear orders (and offerings) at the end of the cycle.
     virtual void reset() override {
-        // Call base class reset (if necessary).
         Market::reset();
-        // Clear the vectors so orders from previous cycles don't accumulate.
         offerings.clear();
         orders.clear();
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
-        // Optionally, reset matchedVolume.
         matchedVolume = 0.0;
     }
 
