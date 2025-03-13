@@ -19,11 +19,15 @@ Furthermore, an **annual birth rate** of **2%** is incorporated (inspired by his
 ## Among This Working Population, We Also Have Firms
 A small fraction—roughly **8%**—of the population are owners of **fishing firms**. At the start, each firm employs enough fishers so that **unemployment** is around **10%**. These firms offer jobs in proportion to the population, with a daily number of posted jobs set to **10%** of the total population (the parameter **totalJobOffers**). Each firm holds an **initial stock** of fish determined by the following relation ; initialStock = population / numberFirms. This initial stock ensures that, at the outset, the population can be fed at least once.
 
-To produce fish each day, we assume the output of a firm is the **minimum** of its existing stock and the product of the number of employees and **employeeEfficiency**:
+Then, after attempting to sell that stock during the day (with sales recorded in the sales vector), the firm updates its stock for the next day by “replenishing” it with new production. In this simplified model, we assume that each firm’s daily production is determined solely by its **employeeEfficiency** multiplie by the numberOfEmployees, which is given by :
 ```
-fishproduced = min(stock, 2 × numberOfEmployees)
+productionCapacity= 2 × numberOfEmployees
 ```
-We set **employeeEfficiency** to **2**, indicating that a typical fisher can catch two fish per day. Then, the next day’s stock is derived by investing a random fraction between 0 and 1 of the **daily profit** back into the stock, thus modeling that profit does not entirely convert into new fish but is partially reinvested.
+We set **employeeEfficiency** to **2**, indicating that a typical fisher can catch two fish per day. Then, the next day’s stock is given by :
+```
+newStock=max( (oldStock − sold) + productionCapacity , 0 )
+```
+Thereby, the number of supply can be calculating by doing the sum of every newStock firm.
 
 ---
 
@@ -33,7 +37,7 @@ Two principal classes control interactions between firms and fishers:
 **FishMarket**  
 This class governs **fish prices** and handles purchasing decisions. In particular, we define two normal distributions: one for the **offered price** $N(\text{offeredPriceMean}=5.1,0.5)$ and one for the **perceived price** $N(\text{perceivedPriceMean}=5.0,0.8)$. A fisher buys a fish automatically if they did not eat the previous day (i.e., if they are starving) **and** they have enough money; otherwise, they only buy if $\text{perceivedPrice} \ge \text{offeredPrice}$. Any fish that remains unsold is discarded.
 
-After each day, we measure total **demand** and total **supply**. If demand is greater than supply, both **offeredPriceMean** and **perceivedPriceMean** are multiplied by a factor drawn from $N(1.025,\,0.005)$. Conversely, if supply exceeds demand, they are multiplied by a factor from $N(0.975,\,0.005)$. To quantify **inflation** on day $n$, we use the relative change of **offeredPriceMean**:
+After each day, we measure total **demand** defined simply as the size of the population (each fisherman requires exactly one fish per day, indicated by the parameter **fishaday** = 1) and total **supply** which corresponds to the combined production from all firms. If demand is greater than supply, both **offeredPriceMean** and **perceivedPriceMean** are multiplied by a factor drawn from $N(1.025,\,0.005)$. Conversely, if supply exceeds demand, they are multiplied by a factor from $N(0.975,\,0.005)$. To quantify **inflation** on day $n$, we use the relative change of **offeredPriceMean**:
 ```
 Inflation(n) = (offeredPriceMean(n+1) - offeredPriceMean(n)) / offeredPriceMean(n)
 ```
@@ -53,23 +57,72 @@ Finally, the **World** class orchestrates each daily cycle. It **resets** key va
 ## Enumeration of All Initial Parameters for the Simulation
 For this economy, the following **initial parameters** are crucial:
 
-- **ageDistMean** and **ageDistVariance**: define the normal law $N(\text{ageDistMean},\,\text{ageDistVariance})$ for initial age distribution (e.g., mean=30, variance=20).  
-- **lifetimeDistMean** and **lifetimeDistVariance**: define the normal law $N(\text{lifetimeDistMean},\,\text{lifetimeDistVariance})$ for lifetime distribution (e.g., mean=60, variance=5).  
-- **totalCycles**: total number of simulated days (e.g., 300).  
-- **totalFisherMen**: total number of fishers (e.g., 100).  
-- **totalFirms**: total number of fishing firms (e.g., 5).  
-- **initialEmployed**: number of fishers employed at the start (e.g., 90).  
-- **initialWage**: baseline wage or fish price reference (e.g., 5.0).  
-- **cycleScale**: number of days per year (e.g., 365).  
-- **maxStarvingDays**: how many consecutive days without fish lead to death (e.g., 5).  
-- **annualBirthRate**: percentage of population growth per year (e.g., 2%).  
-- **offeredPriceMean**: mean offered price by firms at the start (e.g., 5.1).  
-- **perceivedPriceMean**: mean price consumers perceive at the start (e.g., 5.0).  
-- **pQuit**: daily probability that an employed fisher quits (e.g., 10%).  
-- **totalJobOffers**: total daily job openings across firms (e.g., 10).  
-- **employeeEfficiency**: how many fish a single fisher catches per day (e.g., 2).    
+# Simulation Parameters
 
-By adjusting these parameters, one can explore a variety of scenarios within this simplified fishing-based economy.
+This file describes the initial parameters used in the fisher economy simulation.
+
+## 1. Test Configuration & Global Settings
+
+These parameters define the test configuration and global settings.
+
+```cpp
+int testColumn = 1; // The test column to use (1 = Test1, 2 = Test2, etc.)
+int totalCycles;    // Total simulation cycles (days)
+double cycleScale;  // Number of days per year
+```
+
+## 2. Population & Demographic Management
+
+These parameters manage the population and demographic aspects.
+
+```cpp
+int totalFisherMen;              // Total number of fishers
+double annualBirthRate;          // Annual birth rate (e.g., 0.02 for 2%)
+int maxStarvingDays;             // Consecutive days without fish before death
+double ageDistMean;              // Mean for initial age distribution
+double ageDistVariance;          // Variance for age distribution
+double lifetimeDistMean;         // Mean for lifetime distribution
+double lifetimeDistVariance;     // Variance for lifetime distribution
+```
+
+## 3. Derived Population Fractions
+
+These parameters are derived based on the population and represent proportions.
+
+```cpp
+double totalFirms;       // Fraction of firms in the population (e.g., 0.08 means 8%)
+double initialEmployed;  // Initial fraction of the population employed (e.g., 0.90 means 90%)
+double totalJobOffers;   // Fraction of the population offering job positions (e.g., 0.10 means 10%)
+```
+
+## 4. Economic Policy / Market Parameters
+
+These parameters influence the market and economic dynamics.
+
+```cpp
+double initialWage;          // Initial wage reference (fish price)
+double offeredPriceMean;     // Mean offered price by firms at start
+double perceivedPriceMean;   // Mean perceived price by consumers at start
+double pQuit;                // Daily probability that an employed fisher quits
+double employeeEfficiency;   // Number of fish caught per fisher per day
+```
+
+## 5. Inflation Adjustment Parameters
+
+These parameters adjust inflation based on supply and demand.
+
+```cpp
+double meanAugmentationInflat;     // Mean factor when demand > supply (e.g., 1.025)
+double varianceAugmentationInflat;  // Variance for augmentation factor (e.g., 0.005)
+double meanDiminutionInflat;       // Mean factor when supply > demand (e.g., 0.975)
+double varianceDiminutionInflat;    // Variance for diminution factor (e.g., 0.005)
+```
+
+
+
+---
+
+*By adjusting these parameters, one can explore a variety of scenarios within this simplified fishing-based economy.*
 
 ## Documentation
 For more detailed explanations on each component, refer to:
