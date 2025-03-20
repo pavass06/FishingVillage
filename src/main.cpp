@@ -55,77 +55,25 @@ struct SimulationParameters {
     double meanDiminutionInflat;       // Mean factor when supply > demand (e.g., 0.975)
     double varianceDiminutionInflat;    // Variance for diminution factor (e.g., 0.005)
 };
-//////////////////////////////////////////////////////////////////////////////////////////
-// Helper functions to trim whitespace.
-static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }));
-}
-static inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
-}
-static inline void trim(std::string &s) {
-    ltrim(s);
-    rtrim(s);
-}
 
-// Simple string splitting function (by a given delimiter).
-vector<string> split(const string &s, char delimiter) {
-    vector<string> tokens;
-    string token;
-    istringstream tokenStream(s);
-    while(getline(tokenStream, token, delimiter)) {
-        trim(token); // Remove extra whitespace.
-        tokens.push_back(token);
-    }
-    return tokens;
-}
-//////////////////////////////////////////////////////////////////////////////////////////
-// Function to load simulation parameters from a CSV file.
-// The file is assumed to have a header and columns: Parameter, Test1, Test2, ... 
-SimulationParameters loadParameters(const string &filepath) {
-    SimulationParameters params; // testColumn defaults to 1 (Test1)
+///////////////////////////////////////////////////////////////////////////////
+// Function to parse simulation parameters from a file.
+// The file should contain the 21 parameters in order, separated by whitespace or newlines.
+SimulationParameters parseParametersFromFile(const string &filepath) {
+    SimulationParameters params;
     ifstream file(filepath);
-    if (!file.is_open()) {
-        cerr << "Could not open parameters file: " << filepath << endl;
-        return params;
+    if (!file) {
+        cerr << "Error: Cannot open file " << filepath << endl;
+        exit(1);
     }
-    string line;
-    // Read and discard header.
-    getline(file, line);
-    while (getline(file, line)) {
-        vector<string> tokens = split(line, ',');
-        if (tokens.size() < params.testColumn + 1)
-            continue; // Skip if not enough columns.
-        string paramName = tokens[0];
-        string paramValue = tokens[params.testColumn]; // Value from chosen test column.
+    file >> params.totalCycles >> params.cycleScale >> params.totalFisherMen >> params.annualBirthRate
+         >> params.maxStarvingDays >> params.ageDistMean >> params.ageDistVariance >> params.lifetimeDistMean
+         >> params.lifetimeDistVariance >> params.totalFirms >> params.initialEmployed >> params.totalJobOffers
+         >> params.initialWage >> params.offeredPriceMean >> params.perceivedPriceMean >> params.pQuit
+         >> params.employeeEfficiency >> params.meanAugmentationInflat >> params.varianceAugmentationInflat
+         >> params.meanDiminutionInflat >> params.varianceDiminutionInflat;
 
-        if (paramName == "totalCycles") params.totalCycles = stoi(paramValue);
-        else if (paramName == "cycleScale") params.cycleScale = stod(paramValue);
-        else if (paramName == "totalFisherMen") params.totalFisherMen = stoi(paramValue);
-        else if (paramName == "annualBirthRate") params.annualBirthRate = stod(paramValue);
-        else if (paramName == "maxStarvingDays") params.maxStarvingDays = stoi(paramValue);
-        else if (paramName == "ageDistMean") params.ageDistMean = stod(paramValue);
-        else if (paramName == "ageDistVariance") params.ageDistVariance = stod(paramValue);
-        else if (paramName == "lifetimeDistMean") params.lifetimeDistMean = stod(paramValue);
-        else if (paramName == "lifetimeDistVariance") params.lifetimeDistVariance = stod(paramValue);
-        else if (paramName == "totalFirms") params.totalFirms = stod(paramValue);
-        else if (paramName == "initialEmployed") params.initialEmployed = stod(paramValue);
-        else if (paramName == "totalJobOffers") params.totalJobOffers = stod(paramValue);
-        else if (paramName == "initialWage") params.initialWage = stod(paramValue);
-        else if (paramName == "offeredPriceMean") params.offeredPriceMean = stod(paramValue);
-        else if (paramName == "perceivedPriceMean") params.perceivedPriceMean = stod(paramValue);
-        else if (paramName == "pQuit") params.pQuit = stod(paramValue);
-        else if (paramName == "employeeEfficiency") params.employeeEfficiency = stod(paramValue);
-        else if (paramName == "meanAugmentationInflat") params.meanAugmentationInflat = stod(paramValue);
-        else if (paramName == "varianceAugmentationInflat") params.varianceAugmentationInflat = stod(paramValue);
-        else if (paramName == "meanDiminutionInflat") params.meanDiminutionInflat = stod(paramValue);
-        else if (paramName == "varianceDiminutionInflat") params.varianceDiminutionInflat = stod(paramValue);
-    }
-    // Convert fractional values into integer counts.
+    // Convert fractional parameters into counts.
     params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
     if (params.totalFirms < 1)
         params.totalFirms = 1;
@@ -133,6 +81,7 @@ SimulationParameters loadParameters(const string &filepath) {
     params.totalJobOffers = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
     return params;
 }
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Simulation class encapsulating the simulation logic.
@@ -300,24 +249,28 @@ public:
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main function.
-int main() {
-    // Load parameters from the CSV file.
-    SimulationParameters params = loadParameters("/Users/avass/Documents/1SSE/Code/FishingVillage/data/initialparameters.csv");
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        cerr << "Usage: " << argv[0] << " <parameters_file>" << endl;
+        return 1;
+    }
+    SimulationParameters params = parseParametersFromFile(argv[1]);
     Simulation sim(params);
-    cout << " BEGIN program ... " << endl;
-    cout << "   days to simulate = " << params.totalCycles << endl;
-    cout << "   initial number of fishers = " << params.totalFisherMen << endl;
-    cout << "   calculated number of firms = " << params.totalFirms << endl;
-    cout << " -------------------------- " << endl;
+
+    cout << "BEGIN program ..." << endl;
+    cout << "Days to simulate: " << params.totalCycles << endl;
+    cout << "Initial number of fishers: " << params.totalFisherMen << endl;
+    cout << "Calculated number of firms: " << params.totalFirms << endl;
+    cout << "--------------------------" << endl;
 
     auto start = chrono::high_resolution_clock::now();
     sim.run();
-    cout << "  ... END program  " << endl;
-    cout << " -------------------------- " << endl;
-    
+    cout << "... END program" << endl;
+    cout << "--------------------------" << endl;
+
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
-    cout << "elapsed time: " << elapsed.count() << " seconds" << endl;
-    
+    cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
+
     return 0;
 }
