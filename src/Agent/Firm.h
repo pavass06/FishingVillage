@@ -84,6 +84,8 @@ public:
           double productionCapacity = 2.0 * numberOfEmployees;
           // New stock is the sum of unsold fish and the produced fish.
           stock = std::max(remainingStock + productionCapacity, 0.0);
+          // IMPORTANT: Reset sales so that next cycle only considers new sales.
+          sales.clear();
      }
 
 
