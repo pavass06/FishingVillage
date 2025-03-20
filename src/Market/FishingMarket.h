@@ -98,10 +98,7 @@ public:
         double sumTransactionValue = 0.0;
         double totalTransactionVolume = 0.0;
 
-        // --- DEBUG: Print out aggregate demand and supply before matching.
-        std::cout << "DEBUG: Before matching, Aggregate Supply = " << aggregateSupply 
-                  << ", Aggregate Demand = " << aggregateDemand << std::endl;
-
+    
         // Process each order.
         for (auto &order : orders) {
             // Force each order quantity to 1 (if not already).

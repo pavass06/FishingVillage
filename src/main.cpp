@@ -18,14 +18,24 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     // Parse simulation parameters from a file.
-    SimulationParameters params = parseParametersFromFile(argv[1]);
+     SimulationParameters params = parseParametersFromFile(argv[1]);
 
     // Create shared market objects.
     auto jobMarket = make_shared<JobMarket>(params.initialWage, params.perceivedPriceMean, 1);
     auto fishingMarket = make_shared<FishingMarket>(params.perceivedPriceMean);
 
     // Create the World object.
-    World world(params.totalCycles, params.annualBirthRate, jobMarket, fishingMarket, params.maxStarvingDays);
+    World world(params.totalCycles,
+                params.annualBirthRate,
+                jobMarket,
+                fishingMarket,
+                params.maxStarvingDays,
+                params.offeredPriceMean,
+                params.perceivedPriceMean,
+                params.meanAugmentationInflat,
+                params.varianceAugmentationInflat,
+                params.meanDiminutionInflat,
+                params.varianceDiminutionInflat);
 
     // Build the vector of FishingFirm objects.
     vector<shared_ptr<FishingFirm>> firms;
@@ -87,15 +97,15 @@ int main(int argc, char* argv[]) {
         world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, localConsumerPriceDist);
 
         int cycle = day + 1;
-        double currentYear = cycle / params.cycleScale;  // Convert cycles to years.
-        double dailyGDP = world.getGDP();                  // Retrieve daily GDP.
-        int totalFishers = world.getTotalFishers();        // Total number of fishers.
-        int unemployed = world.getUnemployedFishers();       // Number of unemployed fishers.
-        double unemploymentRate = (totalFishers > 0) ? (static_cast<double>(unemployed) / totalFishers * 100.0) : 0.0;
+        double currentYear = cycle / params.cycleScale;  
+        double dailyGDP = world.getGDP();                  
+        int totalFishers = world.getTotalFishers();        
+        int unemployed = world.getUnemployedFishers();       
+        double unemploymentRate = world.getUnemploymentRate();  
         double perCapita = (totalFishers > 0) ? (dailyGDP / totalFishers) : 0.0;
-        double cyclyGDP = 0.0;   // Replace with actual calculation if available.
-        double inflation = 0.0;  // Replace with actual calculation if available.
-
+        double cyclyGDP = dailyGDP / params.cycleScale;   
+        double inflation = world.getInflation(cycle);  
+        
         // Write a summary line for this cycle to the CSV file.
         summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
                     << cyclyGDP << "," << totalFishers << "," << perCapita << ","
