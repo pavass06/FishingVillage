@@ -81,18 +81,13 @@ public:
           // Compute remaining stock after sales.
           double remainingStock = stock - sold;
           // Production capacity: each employee can produce 2 fish per day.
-          double productionCapacity = 2.0 * numberOfEmployees;
+          double productionCapacity = salesEfficiency * numberOfEmployees;
           // New stock is the sum of unsold fish and the produced fish.
           stock = std::max(remainingStock + productionCapacity, 0.0);
           // IMPORTANT: Reset sales so that next cycle only considers new sales.
           sales.clear();
      }
 
-
-    // Modified calculateFishProduced(): production is min(stock, 2 × numberOfEmployees).
-    virtual double calculateFishProduced() const {
-         return std::min(stock, 2.0 * static_cast<double>(numberOfEmployees));
-    }
 
     // In act(), we now update the stock using the updateStock() function.
     virtual void act() override {
