@@ -104,12 +104,12 @@ int main(int argc, char* argv[]) {
         double unemploymentRate = world.getUnemploymentRate();  
         double perCapita = (totalFishers > 0) ? (dailyGDP / totalFishers) : 0.0;
         double cyclyGDP = dailyGDP / params.cycleScale;   
-        double inflation = world.getInflation(cycle);  
+        double inflation = world.getInflation(day);  
         
         // Write a summary line for this cycle to the CSV file.
         summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
                     << cyclyGDP << "," << totalFishers << "," << perCapita << ","
-                    << unemploymentRate << "," << inflation << "\n";
+                    << unemploymentRate << "," << inflation*100<< "\n";
     }
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
