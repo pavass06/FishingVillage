@@ -58,6 +58,8 @@ public:
     // Getters and Setters for job-specific attributes:
     std::string getJobSector() const { return jobSector; }
     void setJobSector(const std::string &js) { jobSector = js; }
+    
+    double getAge() const {return age;}
 
     int getEducationLevel() const { return educationLevel; }
     void setEducationLevel(int el) { educationLevel = el; }

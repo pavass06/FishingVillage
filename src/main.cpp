@@ -44,6 +44,8 @@ int main(int argc, char* argv[]) {
     default_random_engine generator(static_cast<unsigned int>(time(0)));
     normal_distribution<double> firmFundsDist(100.0, 20.0);
     normal_distribution<double> firmPriceDist(params.offeredPriceMean, 0.5);
+    normal_distribution<double> fisherAgeDist(30, 20);      // Mean age 30 years, std 20 years.
+    normal_distribution<double> fisherLifetimeDist(60, 5);    // Mean lifetime 60 years, std 5 years.
     for (int id = 100; id < 100 + params.totalFirms; id++) {
         double funds = firmFundsDist(generator);
         int lifetime = 100000000; // Firm lifetime (days)
@@ -55,18 +57,25 @@ int main(int argc, char* argv[]) {
     world.setFirms(firms);
 
     // Build and add FisherMan objects to the World.
-    for (int id = 0; id < params.initialEmployed; id++) {
-        double lifetime = 365 * 60; // e.g., 60 years.
+     for (int id = 0; id < params.initialEmployed; id++) {
+        double lifetimeYears = fisherLifetimeDist(generator);
+        double lifetime = lifetimeYears * 365; // Convert to days.
+        double ageYears = fisherAgeDist(generator);
+        double age = ageYears * 365; // Convert to days.
         auto fisher = make_shared<FisherMan>(
-            id, 0.0, lifetime, 0.0, 0.0, 1.0, 1.0, true,
+            id, 0.0, lifetime, age, 0.0, 1.0, 1.0, true,
             params.initialWage, 0.0, "fishing", 1, 1, 1
         );
         world.addFisherMan(fisher);
     }
+    // Unemployed fishers:
     for (int id = params.initialEmployed; id < params.totalFisherMen; id++) {
-        double lifetime = 365 * 60;
+        double lifetimeYears = fisherLifetimeDist(generator);
+        double lifetime = lifetimeYears * 365;
+        double ageYears = fisherAgeDist(generator);
+        double age = ageYears * 365;
         auto fisher = make_shared<FisherMan>(
-            id, 0.0, lifetime, 0.0, 0.0, 1.0, 1.0, false,
+            id, 0.0, lifetime, age, 0.0, 1.0, 1.0, false,
             0.0, 0.0, "fishing", 1, 1, 1
         );
         world.addFisherMan(fisher);
@@ -108,9 +117,25 @@ int main(int argc, char* argv[]) {
         
         // Write a summary line for this cycle to the CSV file.
         summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
-                    << cyclyGDP << "," << totalFishers << "," << perCapita << ","
-                    << unemploymentRate << "," << inflation*100<< "\n";
+                    << cyclyGDP << "," << totalFishers << ","
+                    << perCapita << "," << unemploymentRate << "," << inflation*100<< "\n";
     }
+
+    // Write the complete population age distribution to a separate CSV file.
+    ofstream ageFile("/Users/avass/Documents/1SSE/Code/FishingVillage/data/output/populationAgeDistribution.csv");
+    if (!ageFile.is_open()) {
+        cerr << "Error: Unable to open population age output file." << endl;
+        return 1;
+    }
+    // Header for the age distribution file.
+    ageFile << "FisherID,Age(Years)" << "\n";
+    const vector<double>& ageDistribution = world.getPopulationAgeDistribution();
+    for (size_t i = 0; i < ageDistribution.size(); i++) {
+        // Convert age from days to years.
+        double ageInYears = ageDistribution[i] / 365.0;
+        ageFile << i << "," << ageInYears << "\n";
+    }
+    ageFile.close();
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
 

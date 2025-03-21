@@ -7,7 +7,8 @@
 #include <algorithm>
 #include <vector>
 #include "JobMarket.h"  // For JobPosting struct
-#include <random>       // For random distributions
+#include <random>
+#include <cmath>       // For std::ceil
 
 // Structure to record each sale transaction.
 struct SaleRecord {
@@ -17,22 +18,27 @@ struct SaleRecord {
 
 class Firm : public Agent {
 protected:
-    int numberOfEmployees;    // Number of workers employed by the firm
+    int numberOfEmployees;    // Current number of workers employed by the firm
     double stock;             // Current product inventory (in fish units)
     double priceLevel;        // Offered price per fish (e.g., ~5.1 pounds)
     double salesEfficiency;   // Sales efficiency factor (units each employee can sell)
-    double jobPostMultiplier; // Multiplier for number of job posts
+    double jobPostMultiplier; // Multiplier for the number of job posts
     double wageExpense;       // Computed as numberOfEmployees * clearing wage
 
     // Tracking actual sales.
     double totalRevenue;                  // Accumulated revenue from sales
     std::vector<SaleRecord> sales;        // List of sale transactions
 
+    // pQuit chance: probability that an employee is dismissed (e.g., 0.1 for 10%)
+    double quitRate;
+
 public:
     // Constructor with parameters.
+    // The targetEmployees is set initially equal to the starting number of employees.
     Firm(int id, double initFunds, int lifetime, int numberOfEmployees,
          double stock, double priceLevel,
-         double salesEfficiency = 2.0, double jobPostMultiplier = 1.05)
+         double salesEfficiency = 2.0, double jobPostMultiplier = 1.05,
+         double quitRate = 0.1)
          : Agent(id, initFunds, lifetime),
            numberOfEmployees(numberOfEmployees),
            stock(stock),
@@ -40,7 +46,8 @@ public:
            salesEfficiency(salesEfficiency),
            jobPostMultiplier(jobPostMultiplier),
            wageExpense(0.0),
-           totalRevenue(0.0)
+           totalRevenue(0.0),
+           quitRate(quitRate)
     {}
 
     virtual ~Firm() {}
@@ -71,33 +78,42 @@ public:
          return calculateRevenue() - wageExpense;
     }
 
-   
-     virtual void updateStock() {
-          // Calculate the total fish sold today from recorded sales.
+    // Update stock based on sales and production.
+    virtual void updateStock() {
           double sold = 0.0;
           for (const auto &record : sales) {
                sold += record.quantity;
           }
-          // Compute remaining stock after sales.
           double remainingStock = stock - sold;
-          // Production capacity: each employee can produce 2 fish per day.
+          // Production: each employee produces (salesEfficiency) fish per day.
           double productionCapacity = salesEfficiency * numberOfEmployees;
-          // New stock is the sum of unsold fish and the produced fish.
           stock = std::max(remainingStock + productionCapacity, 0.0);
-          // IMPORTANT: Reset sales so that next cycle only considers new sales.
+          // Reset sales for the next cycle.
           sales.clear();
-     }
-
-
-    // In act(), we now update the stock using the updateStock() function.
-    virtual void act() override {
-         updateStock(); // Update stock based on profit reinvestment.
-         // Update funds: add revenue minus wage expenses.
-         funds += calculateRevenue() - wageExpense;
-         // Optionally, reset sales records.
-         // resetSales();
     }
 
+    // New method: shareholders (or an external process) may dismiss employees
+    // with a chance of quitRate per employee.
+    void dismissEmployees(std::default_random_engine &generator) {
+         std::binomial_distribution<int> dismissDist(numberOfEmployees, quitRate);
+         int dismissals = dismissDist(generator);
+         numberOfEmployees -= dismissals;
+#if verbose==1
+         std::cout << "Firm " << id << " dismissed " << dismissals 
+                   << " employees (pQuit process). New employee count: " 
+                   << numberOfEmployees << std::endl;
+#endif
+    }
+
+    // In act(), the firm now only updates its stock and funds.
+    // The process of matching job applicants to vacancies and the subsequent hiring is handled in the JobMarket.
+    virtual void act() override {
+         updateStock();
+         funds += calculateRevenue() - wageExpense;
+         // Optionally, resetSales() may be called here if desired.
+    }
+    virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
+    
     virtual void update() override {
          Agent::update();
     }
@@ -113,7 +129,7 @@ public:
                    << " | Wage Expense: " << wageExpense 
                    << " | Revenue: " << calculateRevenue() 
                    << " | Profit: " << calculateProfit() << std::endl;
-         std::cout << "Fish Produced (Daily Output): " << calculateFishProduced() << std::endl;
+         std::cout << "Fish Produced (Daily Output): " << (salesEfficiency * numberOfEmployees) << std::endl;
          std::cout << "Sales Records:" << std::endl;
          for (const auto &record : sales) {
              std::cout << "  Price: " << record.salePrice 
@@ -139,9 +155,6 @@ public:
     void setJobPostMultiplier(double jpm) { jobPostMultiplier = jpm; }
 
     virtual double getRevenue() const { return calculateRevenue(); }
-    
-    // Pure virtual function; derived classes must implement it.
-    virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
 };
 
 #endif // FIRM_H
