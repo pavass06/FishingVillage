@@ -2,13 +2,14 @@
 #define FIRM_H
 
 #include "Agent.h"
+#include "JobMarket.h"
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
 #include <vector>
-#include "JobMarket.h"  // For JobPosting struct
 #include <random>
 #include <cmath>       // For std::ceil
+
 
 // Structure to record each sale transaction.
 struct SaleRecord {
@@ -99,7 +100,7 @@ public:
          int dismissals = dismissDist(generator);
          numberOfEmployees -= dismissals;
 #if verbose==1
-         std::cout << "Firm " << id << " dismissed " << dismissals 
+         std::cout << "Firm " << " dismissed " << dismissals 
                    << " employees (pQuit process). New employee count: " 
                    << numberOfEmployees << std::endl;
 #endif
