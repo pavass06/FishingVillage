@@ -2,15 +2,19 @@
 #define FISHINGFIRM_H
 
 #include "Firm.h"
+#include "FisherMan.h"
 #include <algorithm>
 #include <iostream>
-#include <cmath>      // For std::floor
+#include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
-// If FishOffering is not already defined, define it here.
 #ifndef FISH_OFFERING_DEFINED
 #define FISH_OFFERING_DEFINED
+
+class FisherMan;
+
 struct FishOffering {
     int id;
     std::string productSector;
@@ -22,24 +26,25 @@ struct FishOffering {
 #endif
 
 class FishingFirm : public Firm {
+private:
+    // Liste des employés (pointeurs partagés vers FisherMan)
+    std::vector<std::shared_ptr<FisherMan>> employees;
 public:
-    // Constructor: priceLevel is fixed at 6.0.
-    // We no longer use jobPostMultiplier.
-    FishingFirm(int id, double initFunds, int lifetime, int numberOfEmployees,
-                double stock,
-                double salesEfficiency = 2.0)
-        : Firm(id, initFunds, lifetime, numberOfEmployees, stock, 6.0, salesEfficiency, 0.0)
-    {}
+    // Constructeur : priceLevel fixé à 6.0.
+    FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
+                double stock, double salesEfficiency = 2.0)
+        : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0)
+    {
+        // La liste employees sera remplie par la suite lors de l'initialisation.
+    }
 
     virtual ~FishingFirm() {}
 
-    // Return the quantity of fish available for sale.
+    // Renvoie la quantité de poissons disponibles à la vente.
     virtual double getGoodsSupply() const {
-        // Ensure only whole fish are considered.
-        return std::min(stock, salesEfficiency * static_cast<double>(numberOfEmployees));
+        return std::min(stock, salesEfficiency * static_cast<double>(employees.size()));
     }
 
-    // Generate a fish offering.
     virtual FishOffering generateGoodsOffering(double cost) const {
         FishOffering offer;
         offer.id = getID();
@@ -47,29 +52,26 @@ public:
         offer.cost = cost;
         offer.offeredPrice = getPriceLevel();
         offer.quantity = getGoodsSupply();
-        // The 'firm' field will be set externally.
         return offer;
     }
 
-    // Generate a job posting.
+    // Génération d'une offre d'emploi.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
         JobPosting posting;
         posting.firmID = getID();
-        posting.jobSector = sector; // For our village, this is "fishing"
+        posting.jobSector = sector;
         posting.educationRequirement = eduReq;
         posting.experienceRequirement = expReq;
         posting.attractiveness = attract;
-        // Return a default vacancy count of 1.
         posting.vacancies = 1;
         posting.recruiting = (posting.vacancies > 0);
         return posting;
     }
 
-
-    // New method: generate multiple job postings based on posting_rate.
+    // Génère plusieurs offres d'emploi en fonction du posting_rate.
     std::vector<JobPosting> generateJobPostings(double posting_rate, const std::string &sector, int eduReq, int expReq, int attract) const {
         std::vector<JobPosting> postings;
-        int currentEmployees = numberOfEmployees; // Using the inherited variable.
+        int currentEmployees = employees.size();
         int numPostings = static_cast<int>(std::ceil(posting_rate * currentEmployees));
         for (int i = 0; i < numPostings; i++) {
             postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
@@ -77,17 +79,43 @@ public:
         return postings;
     }
 
-    // New method: fire a number of employees.
+    // Ajoute un pêcheur aux employés et met à jour son firmID.
+    void addEmployee(std::shared_ptr<FisherMan> emp) {
+        employees.push_back(emp);
+        emp->setFirmID(this->getID());
+        numberOfEmployees = employees.size();
+    }
+
+    // Retire un pêcheur des employés et réinitialise son firmID à 0.
+    void removeEmployee(std::shared_ptr<FisherMan> emp) {
+        auto it = std::find(employees.begin(), employees.end(), emp);
+        if (it != employees.end()) {
+            emp->setFirmID(0);
+            employees.erase(it);
+            numberOfEmployees = employees.size();
+        }
+    }
+
+    // Licencie un nombre donné d'employés.
     void fireEmployees(int count) {
-        numberOfEmployees = std::max(0, numberOfEmployees - count);
+        for (int i = 0; i < count && !employees.empty(); i++) {
+            // Retire le dernier employé (par exemple).
+            std::shared_ptr<FisherMan> emp = employees.back();
+            emp->setFirmID(0);
+            employees.pop_back();
+        }
+        numberOfEmployees = employees.size();
     }
     
-    // (Assuming you have or can add a getter for the employee count.)
-    int getEmployeeCount() const { return numberOfEmployees; }
+    // Renvoie le nombre d'employés.
+    int getEmployeeCount() const { 
+        return employees.size();
+    }
 
     virtual void print() const override {
         Firm::print();
         std::cout << "Goods Supply (Fish Available): " << getGoodsSupply() << std::endl;
+        std::cout << "Nombre d'employés: " << getEmployeeCount() << std::endl;
     }
 };
 

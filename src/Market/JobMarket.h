@@ -2,11 +2,14 @@
 #define JOBMARKET_H
 
 #include "Market.h"
+#include "FisherMan.h"    // Pour avoir la définition de FisherMan
+#include "FishingFirm.h"  // Pour avoir la définition de FishingFirm
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <memory>
 
 struct JobPosting {
     int firmID;
@@ -26,6 +29,8 @@ struct JobApplication {
     int preference;
     int quantity;
     bool matched;
+    // Ce champ permet à JobMarket de faire le lien entre la candidature et le FisherMan postulant.
+    std::shared_ptr<FisherMan> fisherman;
 };
 
 class JobMarket : public Market {
@@ -33,16 +38,14 @@ private:
     std::vector<JobPosting> postings;
     std::vector<JobApplication> applications;
     int matchedJobs;
-    // New parameters for wage determination based on fish price
-    double meanFishOrder;    // Average fish consumption per person (e.g., 1.5)
-    double currentFishPrice; // Current price of a fish (e.g., starts at 5)
+    double meanFishOrder;    // Consommation moyenne de poisson par personne.
+    double currentFishPrice; // Prix courant du poisson.
+    // Pointeur vers la liste des firmes pour embaucher directement.
+    std::vector<std::shared_ptr<FishingFirm>>* firmList;
 public:
-    // Constructor now initializes the wage based on fish price and mean fish order.
-    // initWage is provided but will be overridden by our fish-based wage calculation.
     JobMarket(double initWage, double fishPrice, double meanOrder = 1.5)
-        : Market(initWage), matchedJobs(0), meanFishOrder(meanOrder), currentFishPrice(fishPrice)
+        : Market(initWage), matchedJobs(0), meanFishOrder(meanOrder), currentFishPrice(fishPrice), firmList(nullptr)
     {
-        // Initialize the wage based on the current fish price and consumption rate.
         clearingPrice = currentFishPrice * meanFishOrder;
     }
 
@@ -50,9 +53,14 @@ public:
 
     double getClearingWage() const { return clearingPrice; }
 
-    // Allow external updating of the fish price (e.g., if inflation changes the price).
+    // Permet de mettre à jour le prix du poisson.
     void setCurrentFishPrice(double fishPrice) {
         currentFishPrice = fishPrice;
+    }
+
+    // Permet d'assigner la liste des firmes afin que JobMarket puisse y accéder pour l'embauche.
+    void setFirmList(std::vector<std::shared_ptr<FishingFirm>>* firms) {
+        firmList = firms;
     }
 
     void submitJobPosting(const JobPosting &posting) {
@@ -67,9 +75,10 @@ public:
         aggregateDemand += app.quantity;
     }
 
-    // clearMarket now focuses on matching jobs and recalculating the wage based on the fish price.
+    // Le processus de matching : pour chaque offre, on cherche une candidature dont le secteur correspond.
+    // Lorsque la correspondance est trouvée, JobMarket utilise firmList pour identifier la firme correspondante
+    // et appelle addEmployee() pour y ajouter le FisherMan postulant.
     virtual void clearMarket(std::default_random_engine &generator) override {
-        // Process matching between postings and applications.
         matchedJobs = 0;
         for (auto &posting : postings) {
             for (auto &app : applications) {
@@ -78,6 +87,14 @@ public:
                         posting.vacancies -= 1;
                         app.matched = true;
                         matchedJobs++;
+                        if (firmList) {
+                            for (auto &firm : *firmList) {
+                                if (firm->getID() == posting.firmID) {
+                                    firm->addEmployee(app.fisherman);
+                                    break;
+                                }
+                            }
+                        }
                         if (posting.vacancies <= 0) {
                             posting.recruiting = false;
                             break;
@@ -86,7 +103,6 @@ public:
                 }
             }
         }
-        // Update the clearing wage based on the current fish price and mean fish order.
         clearingPrice = currentFishPrice * meanFishOrder;
     }
 
@@ -100,7 +116,7 @@ public:
 
     virtual void print() const override {
 #if verbose==1
-        std::cout<< "-----------" << std::endl;
+        std::cout << "-----------" << std::endl;
         std::cout << "JobMarket State:" << std::endl;
         std::cout << "Aggregate Demand (Applications): " << aggregateDemand << std::endl;
         std::cout << "Aggregate Supply (Vacancies): " << aggregateSupply << std::endl;
