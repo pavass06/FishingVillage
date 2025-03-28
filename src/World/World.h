@@ -17,10 +17,10 @@
 
 class World {
 private:
-    int currentCycle;        // Current simulation day
-    int totalCycles;         // Total simulation days
-    double annualBirthRate;  // Annual birth rate (e.g., 0.02)
-    int maxStarvingDays;     // Maximum consecutive days without food before death
+    int currentCycle;        // Cycle courant
+    int totalCycles;         // Nombre total de cycles
+    double annualBirthRate;  // Taux de naissance annuel
+    int maxStarvingDays;     // Nombre de jours consécutifs sans manger avant décès
 
     std::vector<std::shared_ptr<FisherMan>> fishers;
     std::vector<std::shared_ptr<FishingFirm>> firms;
@@ -43,19 +43,12 @@ private:
     std::unordered_map<int, int> daysWithoutEat;
     std::vector<double> populationAgeDistribution;
 
-    // Nouveau vecteur pour enregistrer le taux de chômage à chaque cycle.
+    // Historique du taux de chômage par cycle
     std::vector<double> unemploymentHistory;
 
-    void updatePopulationAgeDistribution() {
-        populationAgeDistribution.clear();
-        for (const auto &fisher : fishers) {
-            populationAgeDistribution.push_back(fisher->getAge());
-        }
-    }
-
     // Paramètres pour la dynamique du marché de l'emploi.
-    double postingRate; // par exemple, 0.1 (10% des employés actuels)
-    double firingRate;  // par exemple, 0.05 (5% des employés actuels)
+    double postingRate; // ex. 0.1 (10% des employés)
+    double firingRate;  // ex. 0.05 (5% des employés)
 
 public:
     World(int cycles,
@@ -69,8 +62,8 @@ public:
           double varAugIn,
           double meanDimIn,
           double varDimIn,
-          double postingRate,    // Posting rate parameter.
-          double firingRate)     // Firing rate parameter.
+          double postingRate,
+          double firingRate)
         : currentCycle(0),
           totalCycles(cycles),
           annualBirthRate(annualBirthRate_),
@@ -108,19 +101,15 @@ public:
     }
 
     double getGDP() const { return GDP; }
-
     double getUnemploymentRate() const { return unemploymentRate; }
-    
     double getInflation(int day) const { return inflations[day]; }
-
     int getUnemployedFishers() const {
         int count = 0;
         for (const auto &fisher : fishers)
-            if (!fisher->isEmployed())
+            if (fisher->getFirmID() == 0)
                 count++;
         return count;
     }
-
     std::vector<double> getPopulationAgeDistribution() {
         populationAgeDistribution.clear();
         for (const auto &fisher : fishers) {
@@ -128,30 +117,27 @@ public:
         }
         return populationAgeDistribution;
     }
-    
-    // Méthode pour récupérer le taux de chômage pour un cycle donné.
     double getUnemployment(int day) const {
         if(day < unemploymentHistory.size())
             return unemploymentHistory[day];
         return 0.0;
     }
-
-    // Méthode pour accéder à l'historique complet du chômage.
     const std::vector<double>& getUnemploymentHistory() const {
         return unemploymentHistory;
     }
 
+    // La simulation d'un cycle :
     void simulateCycle(std::default_random_engine &generator,
                        std::normal_distribution<double> &firmPriceDist,
                        std::uniform_int_distribution<int> &goodsQuantityDist,
                        std::normal_distribution<double> &consumerPriceDist) {
         std::cout << "----- Début du cycle " << currentCycle + 1 << " -----" << std::endl;
 
-        // 0) Actualiser l'offre.
+        // 0) Actualisation de l'offre du marché de poissons.
         if (!firms.empty()) {
             fishingMarket->refreshSupply(firms);
         } else {
-            std::cerr << "Erreur : Aucun firm n'est défini dans World." << std::endl;
+            std::cerr << "Erreur : aucune firme définie dans World." << std::endl;
         }
         if (!firms.empty()) {
             double sumOffered = 0.0;
@@ -162,7 +148,7 @@ public:
         }
         std::cout << "Moyenne des prix offerts : " << currentOfferMean << std::endl;
 
-        // 1) Traitement des actions pour tous les pêcheurs actifs.
+        // 1) Actions des pêcheurs.
         std::cout << "Nombre de pêcheurs avant action : " << fishers.size() << std::endl;
         for (auto &fisher : fishers) {
             if (fisher->isActive())
@@ -177,7 +163,7 @@ public:
             fishers.end());
         std::cout << "Nombre de pêcheurs après mise à jour : " << fishers.size() << std::endl;
 
-        // 2) Gestion de la population : naissances.
+        // 2) Naissances.
         double normalizedAnnualBirthRate = (annualBirthRate > 1.0) ? annualBirthRate / 100.0 : annualBirthRate;
         double dailyBirthRate = normalizedAnnualBirthRate / 365.0;
         int currentPopulation = getTotalFishers();
@@ -188,51 +174,47 @@ public:
         for (int i = 0; i < newBirths; i++) {
             int newID = 1000 + fishers.size();
             auto newFisher = std::make_shared<FisherMan>(
-                newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, false,
-                10.0, 0.0, "fishing", 1, 1, 1
+                newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, 0, 0.0, 0.0, "fishing", 1, 1, 1
             );
             addFisherMan(newFisher);
         }
 
-        // 3) Processus du marché de l'emploi.
-        std::cout << "---- Début du processus du marché de l'emploi ----" << std::endl;
+        // 3) Marché de l'emploi.
+        std::cout << "---- Processus du marché de l'emploi ----" << std::endl;
+        // Firing : chaque firme licencie un pourcentage de ses employés.
         for (auto &firm : firms) {
             int currentEmployees = firm->getEmployeeCount();
             int fireCount = static_cast<int>(std::ceil(firingRate * currentEmployees));
             firm->fireEmployees(fireCount);
+        }
+        // Posting : chaque firme publie des offres d'emploi.
+        for (auto &firm : firms) {
             std::vector<JobPosting> firmPostings = firm->generateJobPostings(postingRate, "fishing", 1, 1, 1);
             std::cout << "Firme " << firm->getID() << " génère " << firmPostings.size() << " offres d'emploi." << std::endl;
             for (const auto &posting : firmPostings) {
                 jobMarket->submitJobPosting(posting);
             }
         }
-
         std::cout << "Nombre total d'offres d'emploi soumises : " 
                   << jobMarket->getMatchedJobs() << std::endl;
 
+        // Les pêcheurs sans emploi (firmID == 0) postulent.
         int applicationsCount = 0;
         for (auto &fisher : fishers) {
-            if (!fisher->isEmployed()) {
+            if (fisher->getFirmID() == 0) {
                 JobApplication app = fisher->generateJobApplication();
+                // On associe le pêcheur à la candidature.
+                app.fisherman = fisher;
                 jobMarket->submitJobApplication(app);
                 applicationsCount++;
             }
         }
         std::cout << "Nombre total de candidatures soumises : " << applicationsCount << std::endl;
 
+        // Matching : le JobMarket effectue le matching et embauche via addEmployee().
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
         std::cout << "Nombre de correspondances réalisées : " << matches << std::endl;
-        double clearingWage = jobMarket->getClearingWage();
-        std::cout << "Wage de clearing : " << clearingWage << std::endl;
-        double dailyWage = clearingWage;
-        for (auto &fisher : fishers) {
-            if (!fisher->isEmployed() && matches > 0) {
-                fisher->setEmployed(true);
-                fisher->setWage(dailyWage);
-                matches--;
-            }
-        }
         jobMarket->reset();
 
         // 4) Commandes sur le marché des poissons.
@@ -256,7 +238,7 @@ public:
         fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
         fishingMarket->clearMarket(generator);
 
-        // 5) Calcul du GDP quotidien.
+        // 5) Calcul du GDP.
         double dailyGDP = 0.0;
         for (auto &firm : firms) {
             dailyGDP += firm->getRevenue();
@@ -268,24 +250,21 @@ public:
         // 6) Calcul du taux de chômage.
         int unemployedCount = 0;
         for (const auto &fisher : fishers)
-            if (!fisher->isEmployed())
+            if (fisher->getFirmID() == 0)
                 unemployedCount++;
         unemploymentRate = (fishers.size() > 0) ? static_cast<double>(unemployedCount) / fishers.size() : 0.0;
         std::cout << "Nombre de pêcheurs au chômage : " << unemployedCount << std::endl;
         std::cout << "Taux de chômage : " << unemploymentRate * 100 << "%" << std::endl;
-        
-        // Enregistrer le taux de chômage dans l'historique.
         unemploymentHistory.push_back(unemploymentRate);
 
-        // 7) Processus de famine : vérification des commandes.
+        // 7) Famine : mise à jour des jours sans manger.
         std::unordered_map<int, double> purchases = fishingMarket->getPurchases();
         for (auto &fisher : fishers) {
             int fID = fisher->getID();
-            if (purchases.find(fID) == purchases.end() || purchases[fID] < 1.0) {
+            if (purchases.find(fID) == purchases.end() || purchases[fID] < 1.0)
                 daysWithoutEat[fID]++;
-            } else {
+            else
                 daysWithoutEat[fID] = 0;
-            }
         }
         for (auto &fisher : fishers) {
             int fID = fisher->getID();
@@ -299,8 +278,7 @@ public:
         std::cout << "Nombre de pêcheurs après famine : " << fishers.size() << std::endl;
 
         // 8) Calcul de l'inflation.
-        double prevClearingPrice = 0.0;
-        double newClearingPrice = 0.0;
+        double prevClearingPrice = 0.0, newClearingPrice = 0.0;
         const std::vector<double>& priceHistory = fishingMarket->getClearingPriceHistory();
         if (priceHistory.size() >= 2) {
             prevClearingPrice = priceHistory[priceHistory.size() - 2];
@@ -314,13 +292,11 @@ public:
         }
         std::cout << "Inflation : " << inflation * 100 << "%" << std::endl;
 
-        // Affichage optionnel de l'état du marché de l'emploi.
         jobMarket->print();
 
         currentCycle++;
         std::cout << "----- Fin du cycle " << currentCycle << " -----" << std::endl << std::endl;
     }
-    
 
     void printWorldState() const {
         std::cout << "=== World State at Day " << currentCycle << " ===" << std::endl;
