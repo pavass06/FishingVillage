@@ -65,6 +65,26 @@ public:
         return posting;
     }
 
+
+    // New method: generate multiple job postings based on posting_rate.
+    std::vector<JobPosting> generateJobPostings(double posting_rate, const std::string &sector, int eduReq, int expReq, int attract) const {
+        std::vector<JobPosting> postings;
+        int currentEmployees = numberOfEmployees; // Using the inherited variable.
+        int numPostings = static_cast<int>(std::ceil(posting_rate * currentEmployees));
+        for (int i = 0; i < numPostings; i++) {
+            postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
+        }
+        return postings;
+    }
+
+    // New method: fire a number of employees.
+    void fireEmployees(int count) {
+        numberOfEmployees = std::max(0, numberOfEmployees - count);
+    }
+    
+    // (Assuming you have or can add a getter for the employee count.)
+    int getEmployeeCount() const { return numberOfEmployees; }
+
     virtual void print() const override {
         Firm::print();
         std::cout << "Goods Supply (Fish Available): " << getGoodsSupply() << std::endl;
