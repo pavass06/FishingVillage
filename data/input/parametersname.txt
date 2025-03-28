@@ -13,9 +13,10 @@ totalJobOffers
 initialWage  
 offeredPriceMean  
 perceivedPriceMean  
-pQuit  
 employeeEfficiency  
 meanAugmentationInflat  
 varianceAugmentationInflat  
 meanDiminutionInflat  
 varianceDiminutionInflat  
+postingRate
+firingRate
