@@ -3,6 +3,8 @@
 
 #include "Firm.h"
 #include "FisherMan.h"
+#include "JobMarket.h"  // For JobPosting struct
+
 #include <algorithm>
 #include <iostream>
 #include <cmath>
