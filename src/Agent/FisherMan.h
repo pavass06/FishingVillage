@@ -2,7 +2,8 @@
 #define FISHERMAN_H
 
 #include "Household.h"
-#include "JobMarket.h"  // Pour la structure JobApplication
+//#include "JobMarket.h"  // Pour la structure JobApplication
+struct JobApplication;  // <--- Forward declaration
 #include <iostream>
 #include <string>
 
@@ -78,18 +79,8 @@ public:
     void setWage(double w) { wage = w; }
 
     // La candidature ne doit être générée que si le pêcheur est au chômage (firmID == 0).
-    virtual JobApplication generateJobApplication() const {
-        JobApplication app;
-        app.workerID = getID();
-        app.desiredSector = jobSector;
-        app.educationLevel = educationLevel;
-        app.experienceLevel = experienceLevel;
-        app.preference = jobPreference;
-        // Si le pêcheur est déjà employé, on renvoie une application vide.
-        app.quantity = (firmID == 0) ? 1 : 0;
-        app.matched = false;
-        return app;
-    }
+    JobApplication generateJobApplication() const;
+
 };
 
 #endif // FISHERMAN_H

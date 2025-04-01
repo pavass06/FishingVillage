@@ -28,7 +28,7 @@ RUNDIR = ../wrk/
 
 EXE = agent.exe
 
-cppsource+= main.cpp
+cppsource+= main.cpp Agent/FisherMan.cpp  Market/JobMarket.cpp
 # objects
 OBJCPP = $(sort $(cppsource:.cpp=.o))
 
