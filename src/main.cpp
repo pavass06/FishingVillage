@@ -43,22 +43,38 @@ int main(int argc, char* argv[]) {
     // Construction du vecteur de FishingFirm.
     vector<shared_ptr<FishingFirm>> firms;
     int initialStock = params.totalFisherMen / params.totalFirms;
-    // Calcul d'un nombre initial d'employés par firme (au moins 1)
-    int initialEmployeesPerFirm = max(1, static_cast<int>(params.initialEmployed / params.totalFisherMen * params.totalFisherMen / params.totalFirms));
+    int totalEmployed = static_cast<int>(round(params.initialEmployed * params.totalFisherMen));
+
+    // Distribute employed fishermen exactly among firms.
+    int totalFirms = params.totalFirms;
+    int baseEmployeesPerFirm = totalEmployed / params.totalFirms;
+    int remainder = totalEmployed % totalFirms;
+
     default_random_engine generator(static_cast<unsigned int>(time(0)));
     normal_distribution<double> firmFundsDist(100.0, 20.0);
     normal_distribution<double> firmPriceDist(params.offeredPriceMean, 0.5);
     normal_distribution<double> fisherAgeDist(30, 20);
     normal_distribution<double> fisherLifetimeDist(60, 5);
-    for (int id = 100; id < 100 + params.totalFirms; id++) {
+
+    // Create a vector to hold the number of initially employed fishermen for each firm.
+    vector<int> initialEmployeesForFirms(params.totalFirms, baseEmployeesPerFirm);
+    // Distribute the remainder: add one extra employee to the first 'remainder' firms.
+    for (int i = 0; i < remainder; ++i) {
+        initialEmployeesForFirms[i]++;
+    }
+
+    for (int id = 100, firmIdx = 0; id < 100 + params.totalFirms; id++, firmIdx++) {
         double funds = firmFundsDist(generator);
         int lifetime = 100000000;
+        // When constructing each FishingFirm, you might pass the number of employees from initialEmployeesForFirms.
         auto firm = make_shared<FishingFirm>(id, funds, lifetime, 0, initialStock, params.employeeEfficiency);
         double price = firmPriceDist(generator);
         firm->setPriceLevel(price);
+        // Optionally, you could initialize the firm's employees using initialEmployeesForFirms[firmIdx] if the constructor supports it.
         firms.push_back(firm);
     }
     world.setFirms(firms);
+
     // Fournir la liste des firmes au JobMarket.
     jobMarket->setFirmList(&firms);
 

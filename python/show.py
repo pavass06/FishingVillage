@@ -10,7 +10,7 @@ df.columns = df.columns.str.strip()  # Remove any extra spaces from column names
 
 # Define the x-axis and y-axis parameters
 x_parameter = "Cycle"         # x-axis is always the cycle
-y_parameter = "Population"     # change this to "DailyGDP", "Population", etc.
+y_parameter = "Unemployment"     # change this to "DailyGDP", "Population", etc.
 
 # Downsampling configuration: use step=1 for full data, or change to e.g., 100 for every 100th row
 downsample_step = 100  # Change to 100, 10, etc. if you want to reduce the number of points
