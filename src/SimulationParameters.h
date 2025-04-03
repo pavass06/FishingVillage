@@ -6,6 +6,8 @@
 #include <string>
 #include <stdexcept>
 
+#include "readkeyword.h"
+
 
 using namespace std;
 
@@ -50,38 +52,34 @@ SimulationParameters parseParametersFromFile(const std::string &filename) {
     if (!file.is_open()) {
         throw std::runtime_error("Could not open parameters file.");
     }
-    std::string line;
-    int lineNumber = 0;
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        std::istringstream iss(line);
-        lineNumber++;
-        switch(lineNumber) {
-            case 1:  iss >> params.totalCycles; break;
-            case 2:  iss >> params.cycleScale; break;
-            case 3:  iss >> params.totalFisherMen; break;
-            case 4:  iss >> params.annualBirthRate; break;
-            case 5:  iss >> params.maxStarvingDays; break;
-            case 6:  iss >> params.ageDistMean; break;
-            case 7:  iss >> params.ageDistVariance; break;
-            case 8:  iss >> params.lifetimeDistMean; break;
-            case 9:  iss >> params.lifetimeDistVariance; break;
-            case 10: iss >> params.totalFirms; break;
-            case 11: iss >> params.initialEmployed; break;
-            case 12: iss >> params.totalJobOffers; break;
-            case 13: iss >> params.initialWage; break;
-            case 14: iss >> params.offeredPriceMean; break;
-            case 15: iss >> params.perceivedPriceMean; break;
-            case 16: iss >> params.employeeEfficiency; break;
-            case 17: iss >> params.meanAugmentationInflat; break;
-            case 18: iss >> params.varianceAugmentationInflat; break;
-            case 19: iss >> params.meanDiminutionInflat; break;
-            case 20: iss >> params.varianceDiminutionInflat; break;
-            case 21: iss >> params.postingRate; break;
-            case 22: iss >> params.firingRate; break;
-            default: break;
-        }
-    }
+   
+    // read keywords
+    parseKeyword(file, "totalCycles", params.totalCycles); 
+    parseKeyword(file, "cycleScale", params.cycleScale); 
+    // 2
+    parseKeyword(file, "totalFisherMen", params.totalFisherMen);
+    parseKeyword(file,"annualBirthRate", params.annualBirthRate);
+    parseKeyword(file,"maxStarvingDays",params.maxStarvingDays);
+    parseKeyword(file,"ageDistMean",params.ageDistMean);
+    parseKeyword(file,"ageDistVariance",params.ageDistVariance);
+    parseKeyword(file,"lifetimeDistMean",params.lifetimeDistMean);
+    parseKeyword(file,"lifetimeDistVariance",params.lifetimeDistVariance);
+    // 3
+    parseKeyword(file,"totalFirms",params.totalFirms);
+    parseKeyword(file,"initialEmployed",params.initialEmployed);
+    parseKeyword(file,"totalJobOffers",params.totalJobOffers);
+    // 4
+    parseKeyword(file,"initialWage",params.initialWage);
+    parseKeyword(file,"offeredPriceMean",params.offeredPriceMean);
+    parseKeyword(file,"perceivedPriceMean",params.perceivedPriceMean);
+    parseKeyword(file,"employeeEfficiency",params.employeeEfficiency);
+
+#if debug    
+   std::cout <<   " totalCycles " <<  params.totalCycles << std::endl;
+   std::cout <<   " cycleScale  " <<  params.cycleScale << std::endl;
+#endif
+   
+
     // Conversion des paramètres fractionnaires en valeurs absolues.
     params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
     if (params.totalFirms < 1)
@@ -90,5 +88,9 @@ SimulationParameters parseParametersFromFile(const std::string &filename) {
     params.totalJobOffers = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
     return params;
 }
+
+
+
+
 
 #endif // SIMULATIONPARAMETERS_H
