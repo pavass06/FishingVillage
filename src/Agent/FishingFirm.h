@@ -31,22 +31,22 @@ struct FishOffering {
 
 class FishingFirm : public Firm {
 private:
-    // List of employees (shared pointers to FisherMan)
+    // Liste des employés (shared pointers to FisherMan)
     std::vector<std::shared_ptr<FisherMan>> employees;
-    double revenue_; // Firm's revenue.
+    std::vector<double> revenueHistory;
 public:
-    // Constructor: priceLevel fixed at 6.0.
-    FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
+    // Constructeur: priceLevel fixé à 6.0.
+   FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
                 double stock, double salesEfficiency = 2.0)
-        : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0),
-          revenue_(0.0)
+        : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0)
     {
-        // employees list will be filled later during initialization.
+        // La liste employees sera remplie plus tard lors de l'initialisation.
     }
+
 
     virtual ~FishingFirm() {}
 
-    // Returns the quantity of fish available for sale.
+    // Renvoie la quantité de poissons disponibles à la vente.
     virtual double getGoodsSupply() const {
         return std::min(stock, salesEfficiency * static_cast<double>(employees.size()));
     }
@@ -61,7 +61,7 @@ public:
         return offer;
     }
 
-    // Generate a simple job posting.
+    // Génération d'une offre d'emploi simple.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
         JobPosting posting;
         posting.firmID = getID();
@@ -94,8 +94,8 @@ public:
 
     // Modified generateJobPostings:
     // 1. Compute mean revenue.
-    // 2. If this firm's revenue > mean, return ceil(log(revenue + 1)) postings.
-    // 3. Otherwise, return 0 postings.
+    // 2. Si le revenu de cette firme est supérieur à la moyenne, retourne ceil(log(revenu+1)) offres.
+    // 3. Sinon, retourne 0 offres.
     std::vector<JobPosting> generateJobPostings(const std::vector<double>& allFirmRevenues,
                                                 const std::string &sector,
                                                 int eduReq,
@@ -103,7 +103,7 @@ public:
                                                 int attract) const {
         std::vector<JobPosting> postings;
         double meanRevenue = computeMeanRevenue(allFirmRevenues);
-        double firmRevenue = this->revenue_;
+        double firmRevenue = getRevenue(); // Utilise getRevenue() pour récupérer le revenu mis à jour.
         int numPostings = 0;
         if (firmRevenue > meanRevenue) {
             numPostings = static_cast<int>(std::ceil(std::log(firmRevenue + 1)));
@@ -114,24 +114,24 @@ public:
         return postings;
     }
 
-    // New function: generateFiring.
-    // Rules:
-    // 1. Compute mean and first quartile revenue.
-    // 2. If firm's revenue < first quartile, fire randomly ceil(log(revenue + 1)) employees.
-    // 3. Otherwise, do nothing.
+    // Nouvelle fonction: generateFiring.
+    // Règles:
+    // 1. Calculer la moyenne et le premier quartile des revenus.
+    // 2. Si le revenu de la firme < premier quartile, licencier aléatoirement ceil(log(revenu+1)) employés.
+    // 3. Sinon, ne rien faire.
     void generateFiring(const std::vector<double>& allFirmRevenues) {
         double meanRevenue = computeMeanRevenue(allFirmRevenues);
         double firstQuartileRevenue = computeFirstQuartile(allFirmRevenues);
-        double firmRevenue = this->revenue_;
+        double firmRevenue = getRevenue(); // Utilise getRevenue() ici aussi.
         int numToFire = 0;
         if (firmRevenue < firstQuartileRevenue) {
             numToFire = static_cast<int>(std::ceil(std::log(firmRevenue + 1)));
             if (numToFire > static_cast<int>(employees.size())) {
                 numToFire = employees.size();
             }
-            // Randomize employee order.
-           std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
-            // Fire the first 'numToFire' employees.
+            // Randomiser l'ordre des employés.
+            std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
+            // Licencier les 'numToFire' premiers employés.
             for (int i = 0; i < numToFire; i++) {
                 if (!employees.empty())
                     removeEmployee(employees.front());
@@ -139,9 +139,9 @@ public:
         }
     }
 
-    // Adds a fisherman to employees and updates his firmID.
+    // Ajoute un pêcheur aux employés et met à jour son firmID.
     void addEmployee(std::shared_ptr<FisherMan> emp) {
-        // Ensure that the fisherman is currently unemployed.
+        // S'assurer que le pêcheur est actuellement au chômage.
         if (emp->getFirmID() == 0) {
             employees.push_back(emp);
             emp->setFirmID(this->getID());
@@ -149,27 +149,27 @@ public:
         }
     }
 
-    // Removes a fisherman from employees and resets his firmID to 0.
+    // Retire un pêcheur des employés et réinitialise son firmID à 0.
     void removeEmployee(std::shared_ptr<FisherMan> emp) {
         auto it = std::find(employees.begin(), employees.end(), emp);
         if (it != employees.end()) {
-            emp->setFirmID(0); // Mark as unemployed.
+            emp->setFirmID(0); // Marquer comme au chômage.
             employees.erase(it);
             numberOfEmployees = employees.size();
         }
     }
 
-    // Fire a given number of employees (removes from the end).
+    // Licencie un nombre donné d'employés (en supprimant depuis la fin).
     void fireEmployees(int count) {
         for (int i = 0; i < count && !employees.empty(); i++) {
             std::shared_ptr<FisherMan> emp = employees.back();
-            emp->setFirmID(0); // Mark as unemployed.
+            emp->setFirmID(0); // Marquer comme au chômage.
             employees.pop_back();
         }
         numberOfEmployees = employees.size();
     }
     
-    // Returns the number of employees.
+    // Renvoie le nombre d'employés.
     int getEmployeeCount() const { 
         return employees.size();
     }
