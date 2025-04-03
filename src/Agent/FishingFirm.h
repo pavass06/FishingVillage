@@ -31,22 +31,22 @@ struct FishOffering {
 
 class FishingFirm : public Firm {
 private:
-    // Liste des employés (pointeurs partagés vers FisherMan)
+    // List of employees (shared pointers to FisherMan)
     std::vector<std::shared_ptr<FisherMan>> employees;
     double revenue_; // Firm's revenue.
 public:
-    // Constructeur : priceLevel fixé à 6.0.
+    // Constructor: priceLevel fixed at 6.0.
     FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
                 double stock, double salesEfficiency = 2.0)
         : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0),
-          revenue_(0.0) // Initialize revenue_ to 0.
+          revenue_(0.0)
     {
-        // La liste employees sera remplie par la suite lors de l'initialisation.
+        // employees list will be filled later during initialization.
     }
 
     virtual ~FishingFirm() {}
 
-    // Renvoie la quantité de poissons disponibles à la vente.
+    // Returns the quantity of fish available for sale.
     virtual double getGoodsSupply() const {
         return std::min(stock, salesEfficiency * static_cast<double>(employees.size()));
     }
@@ -58,12 +58,10 @@ public:
         offer.cost = cost;
         offer.offeredPrice = getPriceLevel();
         offer.quantity = getGoodsSupply();
-        // Optionnel : affecter l'entreprise (si shared_from_this() est applicable)
-        // offer.firm = std::const_pointer_cast<FishingFirm>(shared_from_this());
         return offer;
     }
 
-    // Génération d'une offre d'emploi simple.
+    // Generate a simple job posting.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
         JobPosting posting;
         posting.firmID = getID();
@@ -76,13 +74,13 @@ public:
         return posting;
     }
 
-    // Helper function: Compute the mean revenue from a vector of firm revenues.
+    // Helper: Compute mean revenue from a vector of firm revenues.
     double computeMeanRevenue(const std::vector<double>& firmRevenues) const {
         double total = std::accumulate(firmRevenues.begin(), firmRevenues.end(), 0.0);
         return total / firmRevenues.size();
     }
 
-    // Helper function: Compute the first quartile (25th percentile) of firm revenues.
+    // Helper: Compute the first quartile (25th percentile) of firm revenues.
     double computeFirstQuartile(const std::vector<double>& firmRevenues) const {
         std::vector<double> sortedRevenues = firmRevenues;
         std::sort(sortedRevenues.begin(), sortedRevenues.end());
@@ -94,7 +92,7 @@ public:
         return sortedRevenues[index];
     }
 
-    // Modified generateJobPostings function:
+    // Modified generateJobPostings:
     // 1. Compute mean revenue.
     // 2. If this firm's revenue > mean, return ceil(log(revenue + 1)) postings.
     // 3. Otherwise, return 0 postings.
@@ -117,9 +115,9 @@ public:
     }
 
     // New function: generateFiring.
-    // It follows these rules:
-    // 1. Compute mean revenue and first quartile revenue.
-    // 2. If this firm's revenue < first quartile, fire randomly ceil(log(revenue + 1)) employees.
+    // Rules:
+    // 1. Compute mean and first quartile revenue.
+    // 2. If firm's revenue < first quartile, fire randomly ceil(log(revenue + 1)) employees.
     // 3. Otherwise, do nothing.
     void generateFiring(const std::vector<double>& allFirmRevenues) {
         double meanRevenue = computeMeanRevenue(allFirmRevenues);
@@ -131,9 +129,9 @@ public:
             if (numToFire > static_cast<int>(employees.size())) {
                 numToFire = employees.size();
             }
-            // Randomize the order of employees.
-            std::shuffle(employees.begin(), employees.end());
-            // Fire the first 'numToFire' employees from the shuffled vector.
+            // Randomize employee order.
+           std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
+            // Fire the first 'numToFire' employees.
             for (int i = 0; i < numToFire; i++) {
                 if (!employees.empty())
                     removeEmployee(employees.front());
@@ -141,34 +139,37 @@ public:
         }
     }
 
-    // Ajoute un pêcheur aux employés et met à jour son firmID.
+    // Adds a fisherman to employees and updates his firmID.
     void addEmployee(std::shared_ptr<FisherMan> emp) {
-        employees.push_back(emp);
-        emp->setFirmID(this->getID());
-        numberOfEmployees = employees.size();
+        // Ensure that the fisherman is currently unemployed.
+        if (emp->getFirmID() == 0) {
+            employees.push_back(emp);
+            emp->setFirmID(this->getID());
+            numberOfEmployees = employees.size();
+        }
     }
 
-    // Retire un pêcheur des employés et réinitialise son firmID à 0.
+    // Removes a fisherman from employees and resets his firmID to 0.
     void removeEmployee(std::shared_ptr<FisherMan> emp) {
         auto it = std::find(employees.begin(), employees.end(), emp);
         if (it != employees.end()) {
-            emp->setFirmID(0);
+            emp->setFirmID(0); // Mark as unemployed.
             employees.erase(it);
             numberOfEmployees = employees.size();
         }
     }
 
-    // Licencie un nombre donné d'employés (en retirant de la fin).
+    // Fire a given number of employees (removes from the end).
     void fireEmployees(int count) {
         for (int i = 0; i < count && !employees.empty(); i++) {
             std::shared_ptr<FisherMan> emp = employees.back();
-            emp->setFirmID(0);
+            emp->setFirmID(0); // Mark as unemployed.
             employees.pop_back();
         }
         numberOfEmployees = employees.size();
     }
     
-    // Renvoie le nombre d'employés.
+    // Returns the number of employees.
     int getEmployeeCount() const { 
         return employees.size();
     }

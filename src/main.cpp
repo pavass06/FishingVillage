@@ -153,6 +153,20 @@ int main(int argc, char* argv[]) {
     }
     unempFile.close();
 
+      // --- New part: write firm revenues to a file ---
+    ofstream firmRevenueFile("firm_revenu.csv");
+    if (!firmRevenueFile.is_open()) {
+        cerr << "Error: Unable to open firm revenue output file." << endl;
+        return 1;
+    }
+    firmRevenueFile << "FirmID,Revenue\n";
+    for (auto &firm : firms) {
+        firmRevenueFile << firm->getID() << "," << firm->getRevenue() << "\n";
+    }
+    firmRevenueFile.close();
+    
+    // --- End new part ---
+
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
     cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
