@@ -17,10 +17,10 @@
 
 class World {
 private:
-    int currentCycle;        // Cycle courant
-    int totalCycles;         // Nombre total de cycles
-    double annualBirthRate;  // Taux de naissance annuel
-    int maxStarvingDays;     // Nombre de jours consécutifs sans manger avant décès
+    int currentCycle;        // Current cycle
+    int totalCycles;         // Total cycles
+    double annualBirthRate;  // Annual birth rate
+    int maxStarvingDays;     // Days without food before death
 
     std::vector<std::shared_ptr<FisherMan>> fishers;
     std::vector<std::shared_ptr<FishingFirm>> firms;
@@ -43,12 +43,12 @@ private:
     std::unordered_map<int, int> daysWithoutEat;
     std::vector<double> populationAgeDistribution;
 
-    // Historique du taux de chômage par cycle
+    // History of unemployment per cycle
     std::vector<double> unemploymentHistory;
 
-    // Paramètres pour la dynamique du marché de l'emploi.
-    double postingRate; // ex. 0.1 (10% des employés)
-    double firingRate;  // ex. 0.05 (5% des employés)
+    // Parameters for employment dynamics.
+    double postingRate; // e.g., 0.1 (10% of employees)
+    double firingRate;  // e.g., 0.05 (5% of employees)
 
 public:
     World(int cycles,
@@ -126,14 +126,14 @@ public:
         return unemploymentHistory;
     }
 
-    // La simulation d'un cycle :
+    // Simulate one cycle:
     void simulateCycle(std::default_random_engine &generator,
                        std::normal_distribution<double> &firmPriceDist,
                        std::uniform_int_distribution<int> &goodsQuantityDist,
                        std::normal_distribution<double> &consumerPriceDist) {
         std::cout << "----- Début du cycle " << currentCycle + 1 << " -----" << std::endl;
 
-        // 0) Actualisation de l'offre du marché de poissons.
+        // 0) Refresh fish market supply.
         if (!firms.empty()) {
             fishingMarket->refreshSupply(firms);
         } else {
@@ -148,8 +148,7 @@ public:
         }
         std::cout << "Moyenne des prix offerts : " << currentOfferMean << std::endl;
 
-        // 1) Actions des pêcheurs.
-        std::cout << "Nombre de pêcheurs avant action : " << fishers.size() << std::endl;
+        // 1) Fishermen actions.
         for (auto &fisher : fishers) {
             if (fisher->isActive())
                 fisher->act();
@@ -161,49 +160,61 @@ public:
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
             [](const std::shared_ptr<FisherMan> &f) { return !f->isActive(); }),
             fishers.end());
-        std::cout << "Nombre de pêcheurs après mise à jour : " << fishers.size() << std::endl;
 
-        // 2) Naissances.
-        double normalizedAnnualBirthRate = (annualBirthRate > 1.0) ? annualBirthRate / 100.0 : annualBirthRate;
-        double dailyBirthRate = normalizedAnnualBirthRate / 365.0;
-        int currentPopulation = getTotalFishers();
-        double lambda = dailyBirthRate * currentPopulation;
-        std::poisson_distribution<int> poissonDist(lambda);
-        int newBirths = poissonDist(generator);
-        std::cout << "Nouveaux naissances ce cycle : " << newBirths << std::endl;
-        for (int i = 0; i < newBirths; i++) {
-            int newID = 1000 + fishers.size();
-            auto newFisher = std::make_shared<FisherMan>(
-                newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, 0, 0.0, 0.0, "fishing", 1, 1, 1
-            );
-            addFisherMan(newFisher);
+        // 2) Population management: births using a Poisson process.
+        {
+            double normalizedAnnualBirthRate = (annualBirthRate > 1.0) ? annualBirthRate / 100.0 : annualBirthRate;
+            double dailyBirthRate = normalizedAnnualBirthRate / 365.0;
+            int currentPopulation = getTotalFishers();
+            double lambda = dailyBirthRate * currentPopulation;
+            std::poisson_distribution<int> poissonDist(lambda);
+            int newBirths = poissonDist(generator);
+            for (int i = 0; i < newBirths; i++) {
+                int newID = 1000 + fishers.size();
+                auto newFisher = std::make_shared<FisherMan>(
+                    newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, false,
+                    10.0, 0.0, "fishing", 1, 1, 1
+                );
+                addFisherMan(newFisher);
+            }
         }
-
-        // 3) Marché de l'emploi.
+        // 3) Job Market processing.
         std::cout << "---- Processus du marché de l'emploi ----" << std::endl;
-        // Firing : chaque firme licencie un pourcentage de ses employés.
-        for (auto &firm : firms) {
-            int currentEmployees = firm->getEmployeeCount();
-            int fireCount = static_cast<int>(std::ceil(firingRate * currentEmployees));
-            firm->fireEmployees(fireCount);
+        
+        // Save previous firm assignments to identify fired fishermen.
+        std::unordered_map<int, int> prevFirmIDs;
+        for (const auto &fisher : fishers) {
+            prevFirmIDs[fisher->getID()] = fisher->getFirmID();
         }
-        // Posting : chaque firme publie des offres d'emploi.
+
+        // Firing: each firm fires employees based on its performance using generateFiring.
+        int totalFired = 0;
+        std::vector<double> allFirmRevenues;
+        for (const auto &firm : firms)
+            allFirmRevenues.push_back(firm->getRevenue());
         for (auto &firm : firms) {
-            std::vector<JobPosting> firmPostings = firm->generateJobPostings(postingRate, "fishing", 1, 1, 1);
-            std::cout << "Firme " << firm->getID() << " génère " << firmPostings.size() << " offres d'emploi." << std::endl;
+            int beforeCount = firm->getEmployeeCount();
+            firm->generateFiring(allFirmRevenues);
+            int afterCount = firm->getEmployeeCount();
+            totalFired += (beforeCount - afterCount);
+        }
+
+        // Posting: each firm generates job postings based on its performance.
+        int totalPostings = 0;
+        // (Re-use the allFirmRevenues vector already computed.)
+        for (auto &firm : firms) {
+            std::vector<JobPosting> firmPostings = firm->generateJobPostings(allFirmRevenues, "fishing", 1, 1, 1);
+            totalPostings += firmPostings.size();
             for (const auto &posting : firmPostings) {
                 jobMarket->submitJobPosting(posting);
             }
         }
-        std::cout << "Nombre total d'offres d'emploi soumises : " 
-                  << jobMarket->getMatchedJobs() << std::endl;
 
-        // Les pêcheurs sans emploi (firmID == 0) postulent.
+        // Fishermen without a job (firmID == 0) and actively looking for one submit job applications.
         int applicationsCount = 0;
         for (auto &fisher : fishers) {
-            if (fisher->getFirmID() == 0) {
+            if (fisher->getFirmID() == 0 && fisher->isLookingForJob()) {
                 JobApplication app = fisher->generateJobApplication();
-                // On associe le pêcheur à la candidature.
                 app.fisherman = fisher;
                 jobMarket->submitJobApplication(app);
                 applicationsCount++;
@@ -211,13 +222,54 @@ public:
         }
         std::cout << "Nombre total de candidatures soumises : " << applicationsCount << std::endl;
 
-        // Matching : le JobMarket effectue le matching et embauche via addEmployee().
+        // Matching: the JobMarket clears the market and hires via addEmployee().
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
         std::cout << "Nombre de correspondances réalisées : " << matches << std::endl;
+        std::cout << "Nombre de personnes embauchées ce cycle : " << matches << std::endl;
         jobMarket->reset();
 
-        // 4) Commandes sur le marché des poissons.
+        // Debug: Identify current employment status.
+        std::vector<int> unemployedIDs;
+        std::vector<int> employedIDs;
+        std::vector<int> lookingIDs;
+        std::vector<int> firedIDs;
+        for (const auto &fisher : fishers) {
+            int id = fisher->getID();
+            if (fisher->getFirmID() == 0) {
+                unemployedIDs.push_back(id);
+                if (fisher->isLookingForJob())
+                    lookingIDs.push_back(id);
+            } else {
+                employedIDs.push_back(id);
+            }
+            // A fisherman who was employed previously but is now unemployed is considered fired.
+            if (prevFirmIDs[id] != 0 && fisher->getFirmID() == 0) {
+                firedIDs.push_back(id);
+            }
+        }
+
+        // Print detailed debug information.
+        std::cout << "---- Détails du marché de l'emploi ----" << std::endl;
+        std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
+        for (int id : lookingIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "FISHERS EMPLOYÉS (Having a job): ";
+        for (int id : employedIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "FISHERS LICENCIÉS CE CYCLE (Fired this cycle): ";
+        for (int id : firedIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "Récapitulatif:" << std::endl;
+        std::cout << "  - Nombre total de licenciements : " << totalFired << std::endl;
+        std::cout << "  - Nombre total d'offres d'emploi postées : " << totalPostings << std::endl;
+        std::cout << "  - Nombre total de pêcheurs au chômage : " << unemployedIDs.size() << std::endl;
+        std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
+
+        // 4) Fish market orders.
         double sumPerceived = 0.0;
         int orderCount = 0;
         for (auto &fisher : fishers) {
@@ -238,7 +290,7 @@ public:
         fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
         fishingMarket->clearMarket(generator);
 
-        // 5) Calcul du GDP.
+        // 5) GDP calculation.
         double dailyGDP = 0.0;
         for (auto &firm : firms) {
             dailyGDP += firm->getRevenue();
@@ -247,17 +299,16 @@ public:
         GDP = dailyGDP;
         std::cout << "GDP quotidien : " << dailyGDP << std::endl;
 
-        // 6) Calcul du taux de chômage.
+        // 6) Unemployment calculation.
         int unemployedCount = 0;
         for (const auto &fisher : fishers)
             if (fisher->getFirmID() == 0)
                 unemployedCount++;
         unemploymentRate = (fishers.size() > 0) ? static_cast<double>(unemployedCount) / fishers.size() : 0.0;
-        std::cout << "Nombre de pêcheurs au chômage : " << unemployedCount << std::endl;
         std::cout << "Taux de chômage : " << unemploymentRate * 100 << "%" << std::endl;
         unemploymentHistory.push_back(unemploymentRate);
 
-        // 7) Famine : mise à jour des jours sans manger.
+        // 7) Famine: mise à jour des jours sans manger.
         std::unordered_map<int, double> purchases = fishingMarket->getPurchases();
         for (auto &fisher : fishers) {
             int fID = fisher->getID();
@@ -277,7 +328,7 @@ public:
             fishers.end());
         std::cout << "Nombre de pêcheurs après famine : " << fishers.size() << std::endl;
 
-        // 8) Calcul de l'inflation.
+        // 8) Inflation calculation.
         double prevClearingPrice = 0.0, newClearingPrice = 0.0;
         const std::vector<double>& priceHistory = fishingMarket->getClearingPriceHistory();
         if (priceHistory.size() >= 2) {

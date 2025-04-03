@@ -9,22 +9,24 @@ struct JobApplication;  // <--- Forward declaration
 
 class FishingFirm;
 
-
 class FisherMan : public Household {
 protected:
-    // Au lieu d'un booléen "employed", nous utilisons firmID.
-    // 0 signifie non employé, toute autre valeur correspond à l'ID de la firme employeuse.
+    // Instead of a boolean "employed", we use firmID.
+    // 0 means unemployed, any other value corresponds to the employer firm's ID.
     int firmID;
-    double wage;  // Salaire journalier lorsque employé
+    double wage;  // Daily wage when employed
 
-    // Attributs spécifiques au travail :
-    std::string jobSector;  // Dans notre village, c'est "fishing"
-    int educationLevel;     // Niveau de compétence en pêche (1-5)
-    int experienceLevel;    // Niveau d'expérience (1-5)
-    int jobPreference;      // Attractivité minimale acceptable (1-5)
+    // Job-specific attributes:
+    std::string jobSector;  // In our village, it's "fishing"
+    int educationLevel;     // Fishing skill level (1-5)
+    int experienceLevel;    // Experience level (1-5)
+    int jobPreference;      // Minimum acceptable attractiveness (1-5)
+
+    // NEW: Flag indicating if the fisherman is actively looking for a job.
+    bool looking_for_job;
 
 public:
-    // Constructeur avec un paramètre supplémentaire firmID (0 si non employé)
+    // Constructor with firmID parameter (0 if unemployed). Initialize looking_for_job accordingly.
     FisherMan(int id, double initFunds, int lifetime, double income, double savings,
               double jobDemand, double goodsDemand, int firmID, double wage,
               double unemploymentBenefit, 
@@ -33,14 +35,19 @@ public:
           firmID(firmID), wage(wage),
           jobSector(jobSector), educationLevel(educationLevel),
           experienceLevel(experienceLevel), jobPreference(jobPreference)
-    {}
+    {
+        // If unemployed, mark as looking for a job.
+        looking_for_job = (firmID == 0);
+    }
 
     virtual ~FisherMan() {}
 
-    // Si le pêcheur est employé (firmID != 0), il reçoit son salaire.
+    // If employed (firmID != 0), he receives his wage.
     virtual void act() override {
         if (firmID != 0) {
             funds += wage;
+            // When working, he is not actively looking for a new job.
+            looking_for_job = false;
         }
     }
 
@@ -52,11 +59,12 @@ public:
                   << " | Job Sector: " << jobSector
                   << " | Fishing Skill (Edu Level): " << educationLevel 
                   << " | Experience Level: " << experienceLevel 
-                  << " | Job Preference: " << jobPreference << std::endl;
+                  << " | Job Preference: " << jobPreference 
+                  << " | Looking for job: " << (looking_for_job ? "Yes" : "No") << std::endl;
 #endif
     }
 
-    // Getters et setters pour les attributs spécifiques.
+    // Getters and setters for specific attributes.
     std::string getJobSector() const { return jobSector; }
     void setJobSector(const std::string &js) { jobSector = js; }
     
@@ -71,16 +79,24 @@ public:
     int getJobPreference() const { return jobPreference; }
     void setJobPreference(int jp) { jobPreference = jp; }
 
-    // Nouveaux getters et setters pour firmID.
+    // Getters and setters for firmID.
     int getFirmID() const { return firmID; }
-    void setFirmID(int id) { firmID = id; }
+    void setFirmID(int id) { 
+        firmID = id; 
+        // When hired (firmID != 0), stop job search; if 0, start job search.
+        looking_for_job = (id == 0);
+    }
 
     double getWage() const { return wage; }
     void setWage(double w) { wage = w; }
 
-    // La candidature ne doit être générée que si le pêcheur est au chômage (firmID == 0).
-    JobApplication generateJobApplication() const;
+    // NEW: Getter for looking_for_job flag.
+    bool isLookingForJob() const { return looking_for_job; }
+    void setLookingForJob(bool flag) { looking_for_job = flag; }
 
+    // A job application should only be generated if the fisherman is unemployed.
+    // We add a check to only generate if looking_for_job is true.
+    JobApplication generateJobApplication() const;
 };
 
 #endif // FISHERMAN_H

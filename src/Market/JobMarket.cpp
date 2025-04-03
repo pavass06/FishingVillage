@@ -1,6 +1,6 @@
 #include "JobMarket.h"
-#include "FishingFirm.h"   // Full definition needed to call getID(), addEmployee()
-#include "FisherMan.h"     // Full definition needed if accessing FisherMan methods
+#include "FishingFirm.h"   // For getID(), addEmployee()
+#include "FisherMan.h"     // For FisherMan methods
 
 #include <iostream>
 #include <algorithm>
@@ -41,7 +41,9 @@ void JobMarket::clearMarket(std::default_random_engine &generator) {
     for (auto &posting : postings) {
         for (auto &app : applications) {
             if (!app.matched) {
+                // Matching criteria: same sector and posting is recruiting.
                 if (posting.jobSector == app.desiredSector && posting.recruiting) {
+                    // Fill one vacancy.
                     posting.vacancies -= 1;
                     app.matched = true;
                     matchedJobs++;
@@ -90,6 +92,3 @@ int JobMarket::getMatchedJobs() const {
 }
 
 JobMarket::~JobMarket() = default;
-
-
-
