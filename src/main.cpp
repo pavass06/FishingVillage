@@ -159,11 +159,7 @@ int main(int argc, char* argv[]) {
         cerr << "Error: Unable to open firm revenue output file." << endl;
         return 1;
     }
-    firmRevenueFile << "FirmID,Revenue\n";
-    for (auto &firm : firms) {
-        firmRevenueFile << firm->getID() << "," << firm->getRevenue() << "\n";
-    }
-    firmRevenueFile.close();
+    
     
     // --- End new part ---
 

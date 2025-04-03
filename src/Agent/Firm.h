@@ -10,7 +10,6 @@
 #include <random>
 #include <cmath>       // For std::ceil
 
-
 // Structure to record each sale transaction.
 struct SaleRecord {
     double salePrice;
@@ -35,7 +34,6 @@ protected:
 
 public:
     // Constructor with parameters.
-    // The targetEmployees is set initially equal to the starting number of employees.
     Firm(int id, double initFunds, int lifetime, int numberOfEmployees,
          double stock, double priceLevel,
          double salesEfficiency = 2.0, double jobPostMultiplier = 1.05,
