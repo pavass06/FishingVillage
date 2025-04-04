@@ -6,7 +6,7 @@
 
 class Market {
 protected:
-    double aggregateDemand;  // Total quantity of buy orders.
+    double aggregateDemand;  // Total quantity of buy orders/jobs.
     double aggregateSupply;  // Total quantity of sell orders.
     double clearingPrice;    // Current market clearing price.
     

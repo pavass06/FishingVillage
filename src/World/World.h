@@ -228,7 +228,17 @@ public:
                 applicationsCount++;
             }
         }
+
+        std::cout << " agg demand [l232] ===> " << jobMarket->getAggregateDemand() << std::endl;
+        std::cout << " applicationsCount " << applicationsCount << std::endl;
+        
+        
+
         std::cout << "Nombre total de candidatures soumises : " << applicationsCount << std::endl;
+
+
+        std::cout << " aggregateSupply ===> " << jobMarket->getAggregateSupply() << std::endl;
+
 
         // Matching : le JobMarket effectue le matching et embauche via addEmployee().
         jobMarket->clearMarket(generator);
@@ -303,12 +313,40 @@ public:
 
         // 5) Calcul du GDP.
         double dailyGDP = 0.0;
+        int nfirm=0; double sumrevenue=0.0;
+        int totalfishsold=0;
         for (auto &firm : firms) {
-            dailyGDP += firm->getRevenue();
-            firm->resetSales();
+
+            double aux = firm->getRevenue(); 
+            dailyGDP += aux;
+            firm->resetSales(); ////<----------------
+            std::cout << " firm : " << nfirm << " revenue=  " << aux ;
+            double fishsold = firm->getSales();
+            std::cout << " fish sold : " << fishsold ;
+            double revenueperfish = aux/std::max(fishsold,1.0);
+            std::cout << " revenue per fish : " << revenueperfish  ;
+            int nemployees= firm-> getEmployeeCount();
+
+            std::cout << " employees : " << nemployees << std::endl;
+
+
+            totalfishsold+=fishsold;  
+            nfirm++;
+            sumrevenue += aux;
+         
         }
+
+        sumrevenue /= nfirm;
+        std::cout << "Average revenue : " << sumrevenue  << std::endl;
+
+
+        
+
         GDP = dailyGDP;
         std::cout << "GDP quotidien : " << dailyGDP << std::endl;
+
+
+        
 
         // 6) Calcul du taux de chômage.
         int unemployedCount = 0;
