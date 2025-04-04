@@ -11,8 +11,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <numeric> // For accumulate
 #include <cstdlib> // For random_shuffle
+#include <random>  // Pour std::default_random_engine, std::random_device
 
 #ifndef FISH_OFFERING_DEFINED
 #define FISH_OFFERING_DEFINED
@@ -33,16 +33,16 @@ class FishingFirm : public Firm {
 private:
     // Liste des employés (shared pointers to FisherMan)
     std::vector<std::shared_ptr<FisherMan>> employees;
+    // Historique des revenus : chaque firme enregistre son revenu courant par cycle.
     std::vector<double> revenueHistory;
 public:
     // Constructeur: priceLevel fixé à 6.0.
-   FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
+    FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
                 double stock, double salesEfficiency = 2.0)
         : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0)
     {
         // La liste employees sera remplie plus tard lors de l'initialisation.
     }
-
 
     virtual ~FishingFirm() {}
 
@@ -74,39 +74,34 @@ public:
         return posting;
     }
 
-    // Helper: Compute mean revenue from a vector of firm revenues.
-    double computeMeanRevenue(const std::vector<double>& firmRevenues) const {
-        double total = std::accumulate(firmRevenues.begin(), firmRevenues.end(), 0.0);
-        return total / firmRevenues.size();
+    // Enregistre le revenu courant dans l'historique.
+    void firmRevenue(int cycle, int numberFirm) {
+        revenueHistory.push_back(getRevenue());
     }
 
-    // Helper: Compute the first quartile (25th percentile) of firm revenues.
-    double computeFirstQuartile(const std::vector<double>& firmRevenues) const {
-        std::vector<double> sortedRevenues = firmRevenues;
-        std::sort(sortedRevenues.begin(), sortedRevenues.end());
-        size_t n = sortedRevenues.size();
-        size_t index = static_cast<size_t>(std::floor(0.25 * n));
-        if (index >= n) {
-            index = n - 1;
-        }
-        return sortedRevenues[index];
+    // Accesseur pour l'historique des revenus.
+    const std::vector<double>& getRevenueHistory() const {
+        return revenueHistory;
     }
 
-    // Modified generateJobPostings:
-    // 1. Compute mean revenue.
-    // 2. Si le revenu de cette firme est supérieur à la moyenne, retourne ceil(log(revenu+1)) offres.
-    // 3. Sinon, retourne 0 offres.
-    std::vector<JobPosting> generateJobPostings(const std::vector<double>& allFirmRevenues,
+    // Retourne le revenu du cycle courant (dernier élément de revenueHistory).
+    double getCurrentRevenue() const {
+        if (!revenueHistory.empty())
+            return revenueHistory.back();
+        return 0.0;
+    }
+
+    // Génère des offres d'emploi en fonction de la moyenne des revenus passée en paramètre.
+    std::vector<JobPosting> generateJobPostings(double avgRevenue,
                                                 const std::string &sector,
                                                 int eduReq,
                                                 int expReq,
                                                 int attract) const {
         std::vector<JobPosting> postings;
-        double meanRevenue = computeMeanRevenue(allFirmRevenues);
-        double firmRevenue = getRevenue(); // Utilise getRevenue() pour récupérer le revenu mis à jour.
+        double firmRev = getCurrentRevenue();
         int numPostings = 0;
-        if (firmRevenue > meanRevenue) {
-            numPostings = static_cast<int>(std::ceil(std::log(firmRevenue + 1)));
+        if (firmRev > avgRevenue) {
+            numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
         }
         for (int i = 0; i < numPostings; i++) {
             postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
@@ -114,18 +109,12 @@ public:
         return postings;
     }
 
-    // Nouvelle fonction: generateFiring.
-    // Règles:
-    // 1. Calculer la moyenne et le premier quartile des revenus.
-    // 2. Si le revenu de la firme < premier quartile, licencier aléatoirement ceil(log(revenu+1)) employés.
-    // 3. Sinon, ne rien faire.
-    void generateFiring(const std::vector<double>& allFirmRevenues) {
-        double meanRevenue = computeMeanRevenue(allFirmRevenues);
-        double firstQuartileRevenue = computeFirstQuartile(allFirmRevenues);
-        double firmRevenue = getRevenue(); // Utilise getRevenue() ici aussi.
+    // Génère des licenciements en fonction de la moyenne des revenus passée en paramètre.
+    void generateFiring(double avgRevenue) {
+        double firmRev = getCurrentRevenue();
         int numToFire = 0;
-        if (firmRevenue < firstQuartileRevenue) {
-            numToFire = static_cast<int>(std::ceil(std::log(firmRevenue + 1)));
+        if (firmRev < avgRevenue) {
+            numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
             if (numToFire > static_cast<int>(employees.size())) {
                 numToFire = employees.size();
             }
@@ -141,7 +130,6 @@ public:
 
     // Ajoute un pêcheur aux employés et met à jour son firmID.
     void addEmployee(std::shared_ptr<FisherMan> emp) {
-        // S'assurer que le pêcheur est actuellement au chômage.
         if (emp->getFirmID() == 0) {
             employees.push_back(emp);
             emp->setFirmID(this->getID());
