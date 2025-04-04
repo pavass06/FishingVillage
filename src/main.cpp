@@ -153,13 +153,35 @@ int main(int argc, char* argv[]) {
     }
     unempFile.close();
 
-      // --- New part: write firm revenues to a file ---
-    ofstream firmRevenueFile("firm_revenu.csv");
+    int numCycles = firms[0]->getRevenueHistory().size();
+
+    // Ouvrir le fichier de sortie
+    std::ofstream firmRevenueFile("firm_revenu.csv");
     if (!firmRevenueFile.is_open()) {
-        cerr << "Error: Unable to open firm revenue output file." << endl;
+        std::cerr << "Error: Unable to open firm revenue output file." << std::endl;
         return 1;
     }
-    
+
+    // Première ligne : écrire les IDs de chaque firme (colonnes)
+    for (size_t i = 0; i < firms.size(); i++) {
+        firmRevenueFile << firms[i]->getID();
+        if (i < firms.size() - 1)
+            firmRevenueFile << ",";
+    }
+    firmRevenueFile << "\n";
+
+    // Pour chaque cycle, écrire une ligne contenant le revenu de chaque firme à ce cycle.
+    for (int cycle = 0; cycle < numCycles; cycle++) {
+        for (size_t i = 0; i < firms.size(); i++) {
+            const auto &history = firms[i]->getRevenueHistory();
+            double rev = history[cycle];
+            firmRevenueFile << rev;
+            if (i < firms.size() - 1)
+                firmRevenueFile << ",";
+        }
+        firmRevenueFile << "\n";
+    }
+    firmRevenueFile.close();
     
     // --- End new part ---
 
