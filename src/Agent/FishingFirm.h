@@ -103,6 +103,13 @@ public:
         if (firmRev > avgRevenue) {
             numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
         }
+
+        std::cout << " firmRev   = " << firmRev   << std::endl;  
+        std::cout << " avgRevenue  = " << avgRevenue << std::endl;  
+        std::cout << " numPostings (firm) = " << numPostings << std::endl;  
+        std::cout << " -------------------" << firmRev   << std::endl;  
+
+
         for (int i = 0; i < numPostings; i++) {
             postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
         }
