@@ -31,6 +31,7 @@ protected:
 
     // pQuit chance: probability that an employee is dismissed (e.g., 0.1 for 10%)
     double quitRate;
+    int nsales;
 
 public:
     // Constructor with parameters.
@@ -46,7 +47,8 @@ public:
            jobPostMultiplier(jobPostMultiplier),
            wageExpense(0.0),
            totalRevenue(0.0),
-           quitRate(quitRate)
+           quitRate(quitRate), 
+           nsales(0)
     {}
 
     virtual ~Firm() {}
@@ -61,6 +63,7 @@ public:
          double saleValue = salePrice * quantity;
          totalRevenue += saleValue;
          sales.push_back({salePrice, quantity});
+         nsales++;
     }
 
     // Reset sales records and revenue.
@@ -146,6 +149,8 @@ public:
 
     double getPriceLevel() const { return priceLevel; }
     void setPriceLevel(double p) { priceLevel = p; }
+
+    int getSales() const { return nsales;}
 
     double getSalesEfficiency() const { return salesEfficiency; }
     void setSalesEfficiency(double se) { salesEfficiency = se; }
