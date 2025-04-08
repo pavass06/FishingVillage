@@ -89,51 +89,49 @@ public:
         return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
     }
 
-    // Génère des offres d'emploi en fonction de la moyenne des revenus passée en paramètre.
-    std::vector<JobPosting> generateJobPostings(double avgRevenue,
-                                                const std::string &sector,
-                                                int eduReq,
-                                                int expReq,
-                                                int attract) const {
-        std::vector<JobPosting> postings;
-        // Utilisation du revenu courant via getRevenue() pour les décisions
-        double firmRev = getCurrentFirmRevenue();
-        int numPostings = 0;
-        if (firmRev > avgRevenue) {
-            numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
-        }
-
-        std::cout << " firmRev   = " << firmRev << std::endl;  
-        std::cout << " avgRevenue  = " << avgRevenue << std::endl;  
-        std::cout << " numPostings (firm) = " << numPostings << std::endl;  
-        std::cout << " -------------------" << firmRev << std::endl;  
-
-        for (int i = 0; i < numPostings; i++) {
-            postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
-        }
-        return postings;
+    // Modified generateJobPostings based on third quartile revenue.
+    // If the firm's revenue is greater than the global third quartile, it returns a number 
+    // of job postings equal to ceil(log(revenue + 1)); otherwise, 0 postings are generated.
+    std::vector<JobPosting> generateJobPostings(double thirdQuartile,
+                                            const std::string &sector,
+                                            int eduReq,
+                                            int expReq,
+                                            int attract) const {
+    std::vector<JobPosting> postings;
+    double firmRev = getCurrentFirmRevenue();
+    int numPostings = 0;
+    // Only generate postings if firm's revenue exceeds the third quartile
+    if (firmRev > thirdQuartile) {
+        numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
     }
+   
+    
+    // Generate the job postings.
+    for (int i = 0; i < numPostings; i++) {
+        postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
+    }
+    return postings;
+}
 
-    // Génère des licenciements en fonction de la moyenne des revenus passée en paramètre.
-    void generateFiring(double avgRevenue) {
-        // Utilisation du revenu courant via getRevenue() pour les décisions
+    // New generateFiring method based on first quartile revenue.
+    // If the firm's revenue is below the first quartile, this method fires a number of employees 
+    // equal to ceil(log(revenue + 1)) chosen at random. Otherwise, nothing happens.
+    void generateFiring(double firstQuartile) {
         double firmRev = getCurrentFirmRevenue();
-        int numToFire = 0;
-        if (firmRev < avgRevenue) {
-            numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
+        // Only fire employees if firm's revenue is below the first quartile
+        if (firmRev < firstQuartile) {
+            int numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
             if (numToFire > static_cast<int>(employees.size())) {
                 numToFire = employees.size();
             }
-            // Randomiser l'ordre des employés.
+            // Randomize the order of employees to fire
             std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
-            // Licencier les 'numToFire' premiers employés.
             for (int i = 0; i < numToFire; i++) {
                 if (!employees.empty())
                     removeEmployee(employees.front());
             }
         }
     }
-
     // Ajoute un pêcheur aux employés et met à jour son firmID.
     void addEmployee(std::shared_ptr<FisherMan> emp) {
         if (emp->getFirmID() == 0) {

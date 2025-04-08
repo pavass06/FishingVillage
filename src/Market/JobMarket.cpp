@@ -34,7 +34,6 @@ void JobMarket::submitJobApplication(const JobApplication &application) {
     app.matched = false;
     applications.push_back(app);
     aggregateDemand += app.quantity;
-    std::cout << "aggregateDemand [l37] = " << aggregateDemand << std::endl;
 }
 
 void JobMarket::clearMarket(std::default_random_engine &generator) {
