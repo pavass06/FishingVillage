@@ -57,7 +57,6 @@ public:
 
     virtual ~FishingMarket() {}
 
-    
     double getClearingFishPrice() const { return clearingPrice; }
     double getAggregateSupply() const { return aggregateSupply; }
     double getAggregateDemand() const { return aggregateDemand; }
@@ -73,7 +72,6 @@ public:
         aggregateDemand += order.quantity;
     }
 
-    
     // Each firm updates its stock (deducting sold fish and adding new production) via updateStock().
     // Then, the firm's current stock (obtained with getStock()) is used as the available supply for this cycle.
     void refreshSupply(const std::vector<std::shared_ptr<FishingFirm>> &firms) {
@@ -106,9 +104,15 @@ public:
         }
     }
 
-
     // clearMarket performs order matching.
     virtual void clearMarket(std::default_random_engine &generator) override {
+        // --- RANDOMIZATION PROCESS START ---
+        // Shuffle orders randomly using the provided generator.
+        std::shuffle(orders.begin(), orders.end(), generator);
+        // Shuffle offerings randomly as well.
+        std::shuffle(offerings.begin(), offerings.end(), generator);
+        // --- RANDOMIZATION PROCESS END ---
+
         // Clear purchase records from the previous cycle.
         purchases.clear();
         matchedVolume = 0.0;
@@ -119,6 +123,7 @@ public:
         for (auto &order : orders) {
             // Force each order's quantity to 1.
             order.quantity = 1.0;
+            // Process the shuffled offerings
             for (auto &off : offerings) {
                 if (order.desiredSector == off.productSector) {
                     // If the fisherman is hungry, he buys automatically if funds allow.
@@ -134,7 +139,7 @@ public:
                             if (off.firm) {
                                 off.firm->addSale(off.offeredPrice, transacted);
                             }
-                            break;
+                            break; // move to next order
                         }
                     }
                     // Otherwise, the fisherman buys only if the perceived price is at least the offered price.
@@ -150,7 +155,7 @@ public:
                             if (off.firm) {
                                 off.firm->addSale(off.offeredPrice, transacted);
                             }
-                            break;
+                            break; // move to next order
                         }
                     }
                 }
