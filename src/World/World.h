@@ -277,6 +277,12 @@ public:
             }
         }
 
+        // If a firm has no employees, it is removed from the simulation.
+        firms.erase(std::remove_if(firms.begin(), firms.end(),
+        [](const std::shared_ptr<FishingFirm>& firm) {
+            return firm->getEmployeeCount() == 0;
+        }), firms.end());
+
         std::cout << "---- Détails du marché de l'emploi ----" << std::endl;
         std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
         for (int id : lookingIDs)
@@ -296,20 +302,14 @@ public:
         std::cout << "  - Nombre total de pêcheurs au chômage : " << unemployedIDs.size() << std::endl;
         std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
 
-    
-        // Enregistrer les revenus de chaque firme pour ce cycle.
-        for (auto &firm : firms) {
-            firm->recordRevenue();
-        }
-    
-        // 4) Commandes sur le marché des poissons.
+
         double sumPerceived = 0.0;
         int orderCount = 0;
         for (auto &fisher : fishers) {
             FishOrder order;
             order.id = fisher->getID();
             order.desiredSector = "fishing";
-            order.quantity = 1.0;
+            order.quantity = 1.0;  // In this model, each order is 1.
             order.perceivedValue = consumerPriceDist(generator);
             sumPerceived += order.perceivedValue;
             orderCount++;
@@ -319,10 +319,11 @@ public:
         }
         currentPerceivedMean = (orderCount > 0) ? sumPerceived / orderCount : 0.0;
         std::cout << "Nombre de commandes de poissons soumises : " << orderCount << std::endl;
-    
+
         fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
         fishingMarket->clearMarket(generator);
 
+        // Now, record the revenue for each firm only once—after processing fish market orders.
         for (auto &firm : firms) {
             firm->recordRevenue();
         }
