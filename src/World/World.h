@@ -181,49 +181,61 @@ public:
     
         // 3) Processus du marché de l'emploi.
         std::cout << "---- Processus du marché de l'emploi ----" << std::endl;
-        
-        // Sauvegarder les firmID précédents pour identifier les pêcheurs licenciés.
+
+        // Save previous firmID for tracking fired fishermen.
         std::unordered_map<int, int> prevFirmIDs;
         for (const auto &fisher : fishers) {
             prevFirmIDs[fisher->getID()] = fisher->getFirmID();
         }
-    
-        // Avant le matching, calculer la moyenne des revenus courants de toutes les firmes.
-        double sumRevenue = 0.0;
-        int firmCount = 0;
+
+        // ------------------------
+        // Compute revenue statistics for all firms
+        std::vector<double> firmRevenues;
         for (auto &firm : firms) {
             double firmRev = 0.0;
             if (!firm->getRevenueHistory().empty()) {
                 firmRev = firm->getRevenueHistory().back();
             } else {
-                firmRev = firm->getRevenue(); // Pour le premier cycle
+                firmRev = firm->getRevenue(); // For the first cycle
             }
-            sumRevenue += firmRev;
-            firmCount++;
+            firmRevenues.push_back(firmRev);
         }
-        double avgRevenue = (firmCount > 0) ? sumRevenue / firmCount : 0.0;
-        std::cout << "Moyenne des revenus des firmes ce cycle : " << avgRevenue << std::endl;
-    
-        // Firing : chaque firme licencie des employés en fonction de la comparaison avec la moyenne.
+
+        // Sort the revenues in ascending order.
+        std::sort(firmRevenues.begin(), firmRevenues.end());
+
+        // Compute first (Q1) and third (Q3) quartiles.
+        // Here, we use simple indexing: index = floor(n/4) for Q1, floor(3*n/4) for Q3.
+        int n = static_cast<int>(firmRevenues.size());
+        double firstQuartile = (n > 0) ? firmRevenues[std::max(0, n/4)] : 0.0;
+        double thirdQuartile   = (n > 0) ? firmRevenues[std::min(n - 1, (3 * n)/4)] : 0.0;
+
+        std::cout << "First quartile (Q1) revenue: " << firstQuartile << std::endl;
+        std::cout << "Third quartile (Q3) revenue: " << thirdQuartile << std::endl;
+
+        // ------------------------
+        // Firing: Each firm fires employees if its revenue is below Q1.
         int totalFired = 0;
         for (auto &firm : firms) {
             int beforeCount = firm->getEmployeeCount();
-            firm->generateFiring(avgRevenue);
+            // Use the new generateFiring method that takes Q1 as threshold.
+            firm->generateFiring(firstQuartile);
             int afterCount = firm->getEmployeeCount();
             totalFired += (beforeCount - afterCount);
         }
-    
-        // Posting : chaque firme génère des offres d'emploi en fonction de la comparaison avec la moyenne.
+
+        // Hiring: Each firm generates job postings if its revenue is above Q3.
         int totalPostings = 0;
         for (auto &firm : firms) {
-            std::vector<JobPosting> firmPostings = firm->generateJobPostings(avgRevenue, "fishing", 1, 1, 1);
+            // Use the new generateJobPostings method that takes Q3 as threshold.
+            std::vector<JobPosting> firmPostings = firm->generateJobPostings(thirdQuartile, "fishing", 1, 1, 1);
             totalPostings += firmPostings.size();
             for (const auto &posting : firmPostings) {
                 jobMarket->submitJobPosting(posting);
             }
         }
-    
-        // Les pêcheurs sans emploi (firmID == 0) et cherchant activement un travail postulent.
+
+        // Fishermen without a job (firmID == 0) and actively looking for work apply.
         int applicationsCount = 0;
         for (auto &fisher : fishers) {
             if (fisher->getFirmID() == 0 && fisher->isLookingForJob()) {
@@ -233,20 +245,20 @@ public:
                 applicationsCount++;
             }
         }
-    
+
         std::cout << " agg demand [l232] ===> " << jobMarket->getAggregateDemand() << std::endl;
         std::cout << " applicationsCount " << applicationsCount << std::endl;
         std::cout << " aggregateSupply [l235] ===> " << jobMarket->getAggregateSupply() << std::endl;
         std::cout << "applicationsPost: " << totalPostings << std::endl;
-    
-        // Matching : le JobMarket effectue le matching et embauche via addEmployee().
+
+        // Matching: The job market matches offers (and hires via addEmployee).
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
         std::cout << "Nombre de correspondances réalisées : " << matches << std::endl;
         std::cout << "Nombre de personnes embauchées ce cycle : " << matches << std::endl;
         jobMarket->reset();
-    
-        // Debug : identification de l'état d'emploi actuel.
+
+        // Debug: Identify current employment state.
         std::vector<int> unemployedIDs;
         std::vector<int> employedIDs;
         std::vector<int> lookingIDs;
@@ -264,7 +276,7 @@ public:
                 firedIDs.push_back(id);
             }
         }
-    
+
         std::cout << "---- Détails du marché de l'emploi ----" << std::endl;
         std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
         for (int id : lookingIDs)
@@ -283,6 +295,7 @@ public:
         std::cout << "  - Nombre total d'offres d'emploi postées : " << totalPostings << std::endl;
         std::cout << "  - Nombre total de pêcheurs au chômage : " << unemployedIDs.size() << std::endl;
         std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
+
     
         // Enregistrer les revenus de chaque firme pour ce cycle.
         for (auto &firm : firms) {
