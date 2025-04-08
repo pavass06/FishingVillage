@@ -44,7 +44,7 @@ public:
         // La liste employees sera remplie plus tard lors de l'initialisation.
     }
 
-    virtual ~FishingFirm() {}
+        virtual ~FishingFirm() {}
 
     // Renvoie la quantité de poissons disponibles à la vente.
     virtual double getGoodsSupply() const {
@@ -75,7 +75,7 @@ public:
     }
 
     // Enregistre le revenu courant dans l'historique.
-    void firmRevenue(int cycle, int numberFirm) {
+    void recordRevenue() {
         revenueHistory.push_back(getRevenue());
     }
 
@@ -84,11 +84,9 @@ public:
         return revenueHistory;
     }
 
-    // Retourne le revenu du cycle courant (dernier élément de revenueHistory).
-    double getCurrentRevenue() const {
-        if (!revenueHistory.empty())
-            return revenueHistory.back();
-        return 0.0;
+    // Use the recorded revenue from the previous cycle if it exists.
+    double getCurrentFirmRevenue() const {
+        return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
     }
 
     // Génère des offres d'emploi en fonction de la moyenne des revenus passée en paramètre.
@@ -98,17 +96,17 @@ public:
                                                 int expReq,
                                                 int attract) const {
         std::vector<JobPosting> postings;
-        double firmRev = getCurrentRevenue();
+        // Utilisation du revenu courant via getRevenue() pour les décisions
+        double firmRev = getCurrentFirmRevenue();
         int numPostings = 0;
         if (firmRev > avgRevenue) {
             numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
         }
 
-        std::cout << " firmRev   = " << firmRev   << std::endl;  
+        std::cout << " firmRev   = " << firmRev << std::endl;  
         std::cout << " avgRevenue  = " << avgRevenue << std::endl;  
         std::cout << " numPostings (firm) = " << numPostings << std::endl;  
-        std::cout << " -------------------" << firmRev   << std::endl;  
-
+        std::cout << " -------------------" << firmRev << std::endl;  
 
         for (int i = 0; i < numPostings; i++) {
             postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
@@ -118,7 +116,8 @@ public:
 
     // Génère des licenciements en fonction de la moyenne des revenus passée en paramètre.
     void generateFiring(double avgRevenue) {
-        double firmRev = getCurrentRevenue();
+        // Utilisation du revenu courant via getRevenue() pour les décisions
+        double firmRev = getCurrentFirmRevenue();
         int numToFire = 0;
         if (firmRev < avgRevenue) {
             numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
@@ -163,7 +162,7 @@ public:
         }
         numberOfEmployees = employees.size();
     }
-    
+
     // Renvoie le nombre d'employés.
     int getEmployeeCount() const { 
         return employees.size();
