@@ -9,7 +9,7 @@
 #include "FisherMan.h"
 #include "JobMarket.h"
 #include "FishingMarket.h"
-#include "SimulationParameters.h"  // Contient SimulationParameters et parseParametersFromFile
+#include "SimulationParameters.h"  // Contains SimulationParameters and parseParametersFromFile
 
 using namespace std;
 
@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
         cerr << "Usage: " << argv[0] << " <parameters_file>" << endl;
         return 1;
     }
-    // Lecture des paramètres.
+    // Parse the simulation parameters from file.
     SimulationParameters params = parseParametersFromFile(argv[1]);
 
-    // Création des marchés partagés.
+    // Create shared market objects.
     auto jobMarket = make_shared<JobMarket>(params.initialWage, params.perceivedPriceMean, 1);
     auto fishingMarket = make_shared<FishingMarket>(params.perceivedPriceMean);
     
-    // Création de l'objet World.
+    // Create the World object.
     World world(params.totalCycles,
                 params.annualBirthRate,
                 jobMarket,
@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
                 params.postingRate,
                 params.firingRate);
 
-    // Construction du vecteur de FishingFirm.
+    // Build the vector of FishingFirms.
     vector<shared_ptr<FishingFirm>> firms;
     int initialStock = params.totalFisherMen / params.totalFirms;
     int totalEmployed = static_cast<int>(round(params.initialEmployed * params.totalFisherMen));
@@ -66,19 +66,19 @@ int main(int argc, char* argv[]) {
     for (int id = 100, firmIdx = 0; id < 100 + params.totalFirms; id++, firmIdx++) {
         double funds = firmFundsDist(generator);
         int lifetime = 100000000;
-        // When constructing each FishingFirm, you might pass the number of employees from initialEmployeesForFirms.
+        // Construct each FishingFirm. (Here, initial employees are set to 0; they
+        // are assigned later when distributing employed fishermen.)
         auto firm = make_shared<FishingFirm>(id, funds, lifetime, 0, initialStock, params.employeeEfficiency);
         double price = firmPriceDist(generator);
         firm->setPriceLevel(price);
-        // Optionally, you could initialize the firm's employees using initialEmployeesForFirms[firmIdx] if the constructor supports it.
         firms.push_back(firm);
     }
     world.setFirms(firms);
 
-    // Fournir la liste des firmes au JobMarket.
+    // Provide the list of firms to the JobMarket.
     jobMarket->setFirmList(&firms);
 
-    // Création des pêcheurs.
+    // Create fishermen.
     vector<shared_ptr<FisherMan>> employedFishers;
     vector<shared_ptr<FisherMan>> unemployedFishers;
     for (int id = 0; id < params.totalFisherMen; id++) {
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         double lifetime = lifetimeYears * 365;
         double ageYears = fisherAgeDist(generator);
         double age = ageYears * 365;
-        // On crée tous les pêcheurs avec firmID = 0 par défaut.
+        // Create all fishermen with firmID = 0 by default.
         bool initiallyEmployed = (id < static_cast<int>(params.initialEmployed));
         auto fisher = make_shared<FisherMan>(
             id, 0.0, lifetime, age, 0.0, 1.0, 1.0,
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
         else
             unemployedFishers.push_back(fisher);
     }
-    // Répartir les pêcheurs employés sur les firmes.
+    // Distribute employed fishermen across firms.
     int firmIndex = 0;
     int numFirms = firms.size();
     for (auto &fisher : employedFishers) {
@@ -140,6 +140,7 @@ int main(int argc, char* argv[]) {
                     << cyclyGDP << "," << totalFishers << ","
                     << perCapita << "," << unemployment << "," << inflation * 100 << "\n";
     }
+    summaryFile.close();
 
     const vector<double>& unemploymentHistory = world.getUnemploymentHistory();
     ofstream unempFile("unemploymentHistory.csv");
@@ -153,16 +154,19 @@ int main(int argc, char* argv[]) {
     }
     unempFile.close();
 
+    // Write firm revenue history to file.
+    // Each column corresponds to a firm (first line with IDs) and each subsequent line
+    // reports the revenue for that firm during each cycle.
+    // We assume that all firms have the same number of recorded cycles.
     int numCycles = firms[0]->getRevenueHistory().size();
 
-    // Ouvrir le fichier de sortie
-    std::ofstream firmRevenueFile("firm_revenu.csv");
+    ofstream firmRevenueFile("firm_revenu.csv");
     if (!firmRevenueFile.is_open()) {
-        std::cerr << "Error: Unable to open firm revenue output file." << std::endl;
+        cerr << "Error: Unable to open firm revenue output file." << endl;
         return 1;
     }
 
-    // Première ligne : écrire les IDs de chaque firme (colonnes)
+    // Write header: list of firm IDs.
     for (size_t i = 0; i < firms.size(); i++) {
         firmRevenueFile << firms[i]->getID();
         if (i < firms.size() - 1)
@@ -170,11 +174,12 @@ int main(int argc, char* argv[]) {
     }
     firmRevenueFile << "\n";
 
-    // Pour chaque cycle, écrire une ligne contenant le revenu de chaque firme à ce cycle.
+    // Write one line per cycle with each firm's revenue.
     for (int cycle = 0; cycle < numCycles; cycle++) {
         for (size_t i = 0; i < firms.size(); i++) {
             const auto &history = firms[i]->getRevenueHistory();
-            double rev = history[cycle];
+            // If a firm has no recorded revenue for this cycle, output 0.
+            double rev = (cycle < history.size()) ? history[cycle] : 0.0;
             firmRevenueFile << rev;
             if (i < firms.size() - 1)
                 firmRevenueFile << ",";
@@ -182,14 +187,11 @@ int main(int argc, char* argv[]) {
         firmRevenueFile << "\n";
     }
     firmRevenueFile.close();
-    
-    // --- End new part ---
 
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
     cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
     cout << "... END program" << endl;
 
-    summaryFile.close();
     return 0;
 }
