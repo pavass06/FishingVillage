@@ -72,8 +72,7 @@ public:
         aggregateDemand += order.quantity;
     }
 
-    // Each firm updates its stock (deducting sold fish and adding new production) via updateStock().
-    // Then, the firm's current stock (obtained with getStock()) is used as the available supply for this cycle.
+    // refreshSupply aggregates available stock from each firm.
     void refreshSupply(const std::vector<std::shared_ptr<FishingFirm>> &firms) {
         // Clear previous offerings and reset the aggregate supply.
         offerings.clear();
@@ -81,10 +80,8 @@ public:
         
         // Loop over all firms to update their stock and add to the market offerings.
         for (auto &firm : firms) {
-            // Update the firm's stock: this deducts the sold quantity and adds the production capacity.
+            // Update the firm's stock: deduct sales and add production capacity.
             firm->updateStock();
-            
-            // Retrieve the firm's updated stock.
             double availableSupply = firm->getStock();
             
             // Create a new fish offering based on the firm's current stock.
@@ -96,78 +93,77 @@ public:
             offer.quantity = availableSupply;
             offer.firm = firm;
             
-            // Add the offering to the list.
             offerings.push_back(offer);
-            
-            // Accumulate the total supply available in the market.
             aggregateSupply += availableSupply;
         }
     }
 
-    // clearMarket performs order matching.
+    // clearMarket performs order matching with random scanning of offers.
     virtual void clearMarket(std::default_random_engine &generator) override {
-        // --- RANDOMIZATION PROCESS START ---
-        // Shuffle orders randomly using the provided generator.
-        std::shuffle(orders.begin(), orders.end(), generator);
-        // Shuffle offerings randomly as well.
-        std::shuffle(offerings.begin(), offerings.end(), generator);
-        // --- RANDOMIZATION PROCESS END ---
-
-        // Clear purchase records from the previous cycle.
+        // Clear purchase records and reset matching aggregates.
         purchases.clear();
         matchedVolume = 0.0;
         double sumTransactionValue = 0.0;
         double totalTransactionVolume = 0.0;
-
-        // Process each order.
+        
+        // ----- RANDOMIZE THE ORDER -----
+        // Shuffle the orders and offerings to avoid fixed ordering biases.
+        std::shuffle(orders.begin(), orders.end(), generator);
+        std::shuffle(offerings.begin(), offerings.end(), generator);
+        
+        // Process each order by scanning all offers.
         for (auto &order : orders) {
-            // Force each order's quantity to 1.
+            // Ensure the order's quantity is set to 1.
             order.quantity = 1.0;
-            // Process the shuffled offerings
-            for (auto &off : offerings) {
-                if (order.desiredSector == off.productSector) {
-                    // If the fisherman is hungry, he buys automatically if funds allow.
+            // Create a list to collect all candidate offers that satisfy the order.
+            std::vector<size_t> candidateIndices;
+            
+            // Loop over all offerings.
+            for (size_t i = 0; i < offerings.size(); i++) {
+                auto &offer = offerings[i];
+                // Check that sector matches and sufficient quantity is available.
+                if (order.desiredSector == offer.productSector && offer.quantity >= order.quantity) {
+                    // If the fisherman is hungry, check funds; otherwise, check perceived value.
                     if (order.hungry) {
-                        if (order.availableFunds >= off.offeredPrice && off.quantity >= order.quantity) {
-                            double transacted = order.quantity;
-                            order.quantity -= transacted;
-                            off.quantity -= transacted;
-                            matchedVolume += transacted;
-                            totalTransactionVolume += transacted;
-                            sumTransactionValue += off.offeredPrice * transacted;
-                            purchases[order.id] += transacted;
-                            if (off.firm) {
-                                off.firm->addSale(off.offeredPrice, transacted);
-                            }
-                            break; // move to next order
+                        if (order.availableFunds >= offer.offeredPrice) {
+                            candidateIndices.push_back(i);
                         }
                     }
-                    // Otherwise, the fisherman buys only if the perceived price is at least the offered price.
                     else {
-                        if (order.perceivedValue >= off.offeredPrice && off.quantity >= order.quantity) {
-                            double transacted = order.quantity;
-                            order.quantity -= transacted;
-                            off.quantity -= transacted;
-                            matchedVolume += transacted;
-                            totalTransactionVolume += transacted;
-                            sumTransactionValue += off.offeredPrice * transacted;
-                            purchases[order.id] += transacted;
-                            if (off.firm) {
-                                off.firm->addSale(off.offeredPrice, transacted);
-                            }
-                            break; // move to next order
+                        if (order.perceivedValue >= offer.offeredPrice) {
+                            candidateIndices.push_back(i);
                         }
                     }
                 }
             }
+            
+            // If there is at least one candidate, pick one at random.
+            if (!candidateIndices.empty()) {
+                std::uniform_int_distribution<size_t> dist(0, candidateIndices.size() - 1);
+                size_t chosenIndex = candidateIndices[dist(generator)];
+                auto &chosenOffer = offerings[chosenIndex];
+                
+                // Process the chosen offer: reduce quantities and update aggregate values.
+                double transacted = order.quantity; // transacted quantity (1 in our model)
+                order.quantity -= transacted;
+                chosenOffer.quantity -= transacted;
+                matchedVolume += transacted;
+                totalTransactionVolume += transacted;
+                sumTransactionValue += chosenOffer.offeredPrice * transacted;
+                purchases[order.id] += transacted;
+                if (chosenOffer.firm) {
+                    chosenOffer.firm->addSale(chosenOffer.offeredPrice, transacted);
+                }
+            }
+            // If no candidate is found, the order remains unmatched.
         }
         
-        // Calculate the clearing price if any transaction occurred.
+        // Calculate the new clearing price if any transaction occurred.
         if (totalTransactionVolume > 0) {
             clearingPrice = sumTransactionValue / totalTransactionVolume;
         }
         
-        // Record the new clearing price in the history vector.
+        // Record the clearing price in the history vector.
         clearingPrices.push_back(clearingPrice);
         
         // Reset aggregates for the next cycle.
@@ -179,7 +175,7 @@ public:
         orders.clear();
     }
 
-    // Reset the market: clear offerings, orders, aggregates, and optionally the clearing price history.
+    // Reset the market state.
     virtual void reset() override {
         Market::reset();
         offerings.clear();
@@ -187,15 +183,15 @@ public:
         aggregateSupply = 0.0;
         aggregateDemand = 0.0;
         matchedVolume = 0.0;
-        clearingPrices.clear(); // Optionally, preserve the history if desired.
+        clearingPrices.clear(); // Optionally, preserve history.
     }
 
-    // Set aggregate demand (used externally to force a value).
+    // Set aggregate demand externally.
     void setAggregateDemand(double demand) {
         aggregateDemand = demand;
     }
 
-    // Print the market state (debug mode).
+    // Print the market state (for debugging).
     virtual void print() const override {
 #if verbose==1
         std::cout << "-----------" << std::endl;
@@ -213,3 +209,4 @@ public:
 };
 
 #endif // FISHINGMARKET_H
+
