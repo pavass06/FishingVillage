@@ -158,7 +158,10 @@ int main(int argc, char* argv[]) {
     // Each column corresponds to a firm (first line with IDs) and each subsequent line
     // reports the revenue for that firm during each cycle.
     // We assume that all firms have the same number of recorded cycles.
-    int numCycles = firms[0]->getRevenueHistory().size();
+    int numCycles = 0;
+    for (const auto& firm : firms) {
+        numCycles = std::max(numCycles, static_cast<int>(firm->getRevenueHistory().size()));
+        }
 
     ofstream firmRevenueFile("firm_revenu.csv");
     if (!firmRevenueFile.is_open()) {
