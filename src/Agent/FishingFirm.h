@@ -31,22 +31,20 @@ struct FishOffering {
 
 class FishingFirm : public Firm {
 private:
-    // Liste des employés (shared pointers to FisherMan)
+    // List of employees (shared pointers to FisherMan)
     std::vector<std::shared_ptr<FisherMan>> employees;
-    // Historique des revenus : chaque firme enregistre son revenu courant par cycle.
+    // Revenue history: each firm records its current revenue per cycle.
     std::vector<double> revenueHistory;
 public:
-    // Constructeur: priceLevel fixé à 6.0.
+    // Constructor: priceLevel fixed to 6.0
     FishingFirm(int id, double initFunds, int lifetime, int initialEmployees,
                 double stock, double salesEfficiency = 2.0)
         : Firm(id, initFunds, lifetime, initialEmployees, stock, 6.0, salesEfficiency, 0.0)
-    {
-        // La liste employees sera remplie plus tard lors de l'initialisation.
-    }
+    {}
 
-        virtual ~FishingFirm() {}
+    virtual ~FishingFirm() {}
 
-    // Renvoie la quantité de poissons disponibles à la vente.
+    // Returns the amount of fish available for sale.
     virtual double getGoodsSupply() const {
         return std::min(stock, salesEfficiency * static_cast<double>(employees.size()));
     }
@@ -61,7 +59,7 @@ public:
         return offer;
     }
 
-    // Génération d'une offre d'emploi simple.
+    // Generates a single job posting.
     virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const override {
         JobPosting posting;
         posting.firmID = getID();
@@ -74,57 +72,53 @@ public:
         return posting;
     }
 
-    // Enregistre le revenu courant dans l'historique.
-    void recordRevenue() {
-        revenueHistory.push_back(getRevenue());
-    }
-
-    // Accesseur pour l'historique des revenus.
-    const std::vector<double>& getRevenueHistory() const {
-        return revenueHistory;
-    }
-
-    // Use the recorded revenue from the previous cycle if it exists.
-    double getCurrentFirmRevenue() const {
-        return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
-    }
-
-    // Modified generateJobPostings based on third quartile revenue.
+    // New generateJobPostings method based on third quartile revenue.
     // If the firm's revenue is greater than the global third quartile, it returns a number 
-    // of job postings equal to ceil(log(revenue + 1)); otherwise, 0 postings are generated.
+    // of job postings equal to ceil(log(revenue + 1)); otherwise, 5% chance to still post.
     std::vector<JobPosting> generateJobPostings(double thirdQuartile,
                                             const std::string &sector,
                                             int eduReq,
                                             int expReq,
                                             int attract) const {
-    std::vector<JobPosting> postings;
-    double firmRev = getCurrentFirmRevenue();
-    int numPostings = 0;
-    // Only generate postings if firm's revenue exceeds the third quartile
-    if (firmRev > thirdQuartile) {
-        numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
-    }
-   
-    
-    // Generate the job postings.
-    for (int i = 0; i < numPostings; i++) {
-        postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
-    }
-    return postings;
-}
+        std::vector<JobPosting> postings;
+        double firmRev = getCurrentFirmRevenue();
 
-    // New generateFiring method based on first quartile revenue.
-    // If the firm's revenue is below the first quartile, this method fires a number of employees 
-    // equal to ceil(log(revenue + 1)) chosen at random. Otherwise, nothing happens.
+        bool forcePost = ((double) rand() / RAND_MAX < 0.05);
+        int numPostings = 0;
+        if (firmRev > thirdQuartile) {
+            numPostings = static_cast<int>(std::ceil(std::log(firmRev + 1)));
+        }
+
+        for (int i = 0; i < numPostings; i++) {
+            postings.push_back(generateJobPosting(sector, eduReq, expReq, attract));
+        }
+
+        return postings;
+    }
+
+    // Record the current revenue in the history.
+    void recordRevenue() {
+        revenueHistory.push_back(getRevenue());
+    }
+
+    const std::vector<double>& getRevenueHistory() const {
+        return revenueHistory;
+    }
+
+    double getCurrentFirmRevenue() const {
+        return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
+    }
+
+    // Modified generateFiring method based on first quartile revenue.
     void generateFiring(double firstQuartile) {
         double firmRev = getCurrentFirmRevenue();
-        // Only fire employees if firm's revenue is below the first quartile
+
+        bool forceFire = ((double) rand() / RAND_MAX < 0.05);
         if (firmRev < firstQuartile) {
             int numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
             if (numToFire > static_cast<int>(employees.size())) {
                 numToFire = employees.size();
             }
-            // Randomize the order of employees to fire
             std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
             for (int i = 0; i < numToFire; i++) {
                 if (!employees.empty())
@@ -132,7 +126,7 @@ public:
             }
         }
     }
-    // Ajoute un pêcheur aux employés et met à jour son firmID.
+
     void addEmployee(std::shared_ptr<FisherMan> emp) {
         if (emp->getFirmID() == 0) {
             employees.push_back(emp);
@@ -141,27 +135,24 @@ public:
         }
     }
 
-    // Retire un pêcheur des employés et réinitialise son firmID à 0.
     void removeEmployee(std::shared_ptr<FisherMan> emp) {
         auto it = std::find(employees.begin(), employees.end(), emp);
         if (it != employees.end()) {
-            emp->setFirmID(0); // Marquer comme au chômage.
+            emp->setFirmID(0);
             employees.erase(it);
             numberOfEmployees = employees.size();
         }
     }
 
-    // Licencie un nombre donné d'employés (en supprimant depuis la fin).
     void fireEmployees(int count) {
         for (int i = 0; i < count && !employees.empty(); i++) {
             std::shared_ptr<FisherMan> emp = employees.back();
-            emp->setFirmID(0); // Marquer comme au chômage.
+            emp->setFirmID(0);
             employees.pop_back();
         }
         numberOfEmployees = employees.size();
     }
 
-    // Renvoie le nombre d'employés.
     int getEmployeeCount() const { 
         return employees.size();
     }
