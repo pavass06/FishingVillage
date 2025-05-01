@@ -2,23 +2,25 @@
 #define LABOURMODEL_H
 
 #include <string>
-#include "../Agent/FishingFirm.h"   // Chemin relatif vers votre FishingFirm.h
+
+// forward‐declare FishingFirm so we can refer to it without including its header
+class FishingFirm;
 
 namespace LabourDemandModels {
 
-    /// Règle simple : croissance de CA passée
+    // simple past-performance rule
     int computeJobsPastPerformance(
         const FishingFirm& firm,
         double growthThreshold = 0.10
     );
 
-    /// Règle Eurace@Unibi : prévision → N* → ouvertures
+    // Eurace@Unibi rule
     int computeJobsEUBI(
         const FishingFirm& firm,
         double alpha = 100.0
     );
 
-    /// Wrapper modulaire : choisit la règle selon labourModelName
+    // wrapper that picks the rule by name
     int computeJobPostings(
         const FishingFirm& firm,
         const std::string& labourModelName,
@@ -28,4 +30,4 @@ namespace LabourDemandModels {
 
 }  // namespace LabourDemandModels
 
-#endif  // LABOURMODEL_H
+#endif // LABOURMODEL_H

@@ -19,30 +19,40 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <parameters_file>" << endl;
+        cerr << "Usage: " << argv[0] << " <parameters_file>\n";
         return 1;
     }
-    // Parse the simulation parameters from file.
+    // Parse des paramètres
     SimulationParameters params = parseParametersFromFile(argv[1]);
 
-    // Create shared market objects.
-    auto jobMarket = make_shared<JobMarket>(params.initialWage, params.perceivedPriceMean, 1);
-    auto fishingMarket = make_shared<FishingMarket>(params.perceivedPriceMean);
-    
-    // Create the World object.
-    World world(params.totalCycles,
-                params.annualBirthRate,
-                jobMarket,
-                fishingMarket,
-                params.maxStarvingDays,
-                params.offeredPriceMean,
-                params.perceivedPriceMean,
-                params.meanAugmentationInflat,
-                params.varianceAugmentationInflat,
-                params.meanDiminutionInflat,
-                params.varianceDiminutionInflat,
-                params.postingRate,
-                params.firingRate);
+    // Création des marchés
+    auto jobMarket = make_shared<JobMarket>(
+        params,
+        params.initialWage,
+        params.perceivedPriceMean,
+        /* mean fish order */ 1.0
+    );
+    auto fishingMarket = make_shared<FishingMarket>(
+        params.perceivedPriceMean
+    );
+
+    //Création du monde avec la nouvelle signature
+    World world(
+        params,                         // ← nouveau premier argument
+        params.totalCycles,
+        params.annualBirthRate,
+        jobMarket,
+        fishingMarket,
+        params.maxStarvingDays,
+        params.offeredPriceMean,
+        params.perceivedPriceMean,
+        params.meanAugmentationInflat,
+        params.varianceAugmentationInflat,
+        params.meanDiminutionInflat,
+        params.varianceDiminutionInflat,
+        params.postingRate,
+        params.firingRate
+    );
 
     // Build the vector of FishingFirms.
     vector<shared_ptr<FishingFirm>> firms;

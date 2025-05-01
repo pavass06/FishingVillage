@@ -9,6 +9,7 @@
 #include <random>
 #include <unordered_map>
 #include <cmath>
+#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/SimulationParameters.h"
 #include "FisherMan.h"
 #include "Firm.h"
 #include "FishingFirm.h"
@@ -16,72 +17,75 @@
 #include "FishingMarket.h"
 
 class World {
-private:
-    int currentCycle;        // Cycle courant
-    int totalCycles;         // Nombre total de cycles
-    double annualBirthRate;  // Taux de naissance annuel
-    int maxStarvingDays;     // Jours sans manger avant décès
-
-    std::vector<std::shared_ptr<FisherMan>> fishers;
-    std::vector<std::shared_ptr<FishingFirm>> firms;
-
-    std::shared_ptr<JobMarket> jobMarket;
-    std::shared_ptr<FishingMarket> fishingMarket;
-
-    double GDP;
-    double unemploymentRate;
-    double inflation;
-
-    double currentOfferMean;    
-    double currentPerceivedMean;
-    double meanAugmentationInflat;
-    double varianceAugmentationInflat;
-    double meanDiminutionInflat;
-    double varianceDiminutionInflat;
-    std::vector<double> inflations;
-
-    std::unordered_map<int, int> daysWithoutEat;
-    std::vector<double> populationAgeDistribution;
-
-    // Historique du taux de chômage par cycle.
-    std::vector<double> unemploymentHistory;
-
-    // Paramètres pour la dynamique de l'emploi.
-    double postingRate; // par ex., 0.1 (10% des employés)
-    double firingRate;  // par ex., 0.05 (5% des employés)
-
-public:
-    World(int cycles,
-          double annualBirthRate_,
-          std::shared_ptr<JobMarket> jm,
-          std::shared_ptr<FishingMarket> fm,
-          int maxStarvingDays_,
-          double offeredPriceMean,
-          double perceivedPriceMean,
-          double meanAugIn,
-          double varAugIn,
-          double meanDimIn,
-          double varDimIn,
-          double postingRate,
-          double firingRate)
-        : currentCycle(0),
-          totalCycles(cycles),
-          annualBirthRate(annualBirthRate_),
-          maxStarvingDays(maxStarvingDays_),
-          jobMarket(jm),
-          fishingMarket(fm),
-          GDP(0.0),
-          unemploymentRate(0.0),
-          inflation(0.0),
-          currentOfferMean(offeredPriceMean),
-          currentPerceivedMean(perceivedPriceMean),
-          meanAugmentationInflat(meanAugIn),
-          varianceAugmentationInflat(varAugIn),
-          meanDiminutionInflat(meanDimIn),
-          varianceDiminutionInflat(varDimIn),
-          postingRate(postingRate),
-          firingRate(firingRate)
-    {}
+    private:
+        // **NOUVEAU** : référence aux paramètres globaux
+        const SimulationParameters& params;
+    
+        int currentCycle;        // Cycle courant
+        int totalCycles;         // Nombre total de cycles
+        double annualBirthRate;  // Taux de naissance annuel
+        int maxStarvingDays;     // Jours sans manger avant décès
+    
+        std::vector<std::shared_ptr<FisherMan>> fishers;
+        std::vector<std::shared_ptr<FishingFirm>> firms;
+    
+        std::shared_ptr<JobMarket> jobMarket;
+        std::shared_ptr<FishingMarket> fishingMarket;
+    
+        double GDP;
+        double unemploymentRate;
+        double inflation;
+    
+        double currentOfferMean;
+        double currentPerceivedMean;
+        double meanAugmentationInflat;
+        double varianceAugmentationInflat;
+        double meanDiminutionInflat;
+        double varianceDiminutionInflat;
+        std::vector<double> inflations;
+    
+        std::unordered_map<int, int> daysWithoutEat;
+        std::vector<double> populationAgeDistribution;
+        std::vector<double> unemploymentHistory;
+    
+        double postingRate; // ex. 0.1 = 10%
+        double firingRate;  // ex. 0.05 = 5%
+    
+    public:
+        // **Signature mise à jour** : params en premier
+        World(const SimulationParameters& params,
+              int cycles,
+              double annualBirthRate,
+              std::shared_ptr<JobMarket> jm,
+              std::shared_ptr<FishingMarket> fm,
+              int maxStarvingDays,
+              double offeredPriceMean,
+              double perceivedPriceMean,
+              double meanAugIn,
+              double varAugIn,
+              double meanDimIn,
+              double varDimIn,
+              double postingRate,
+              double firingRate)
+          : params(params),
+            currentCycle(0),
+            totalCycles(cycles),
+            annualBirthRate(annualBirthRate),
+            maxStarvingDays(maxStarvingDays),
+            jobMarket(jm),
+            fishingMarket(fm),
+            GDP(0.0),
+            unemploymentRate(0.0),
+            inflation(0.0),
+            currentOfferMean(offeredPriceMean),
+            currentPerceivedMean(perceivedPriceMean),
+            meanAugmentationInflat(meanAugIn),
+            varianceAugmentationInflat(varAugIn),
+            meanDiminutionInflat(meanDimIn),
+            varianceDiminutionInflat(varDimIn),
+            postingRate(postingRate),
+            firingRate(firingRate)
+        {}
 
     void setFirms(const std::vector<std::shared_ptr<FishingFirm>> &firmVec) {
         firms = firmVec;
@@ -224,13 +228,17 @@ public:
             totalFired += (beforeCount - afterCount);
         }
 
-        // Hiring: Each firm generates job postings if its revenue is above Q3.
+        // Hiring
         int totalPostings = 0;
-        for (auto &firm : firms) {
-            // Use the new generateJobPostings method that takes Q3 as threshold.
-            std::vector<JobPosting> firmPostings = firm->generateJobPostings(thirdQuartile, "fishing", 1, 1, 1);
-            totalPostings += firmPostings.size();
-            for (const auto &posting : firmPostings) {
+        for (auto& firm : firms) {
+            std::vector<JobPosting> firmPostings =
+                firm->generateJobPostings(
+                    params.labourModel,
+                    params.growthThreshold,
+                    params.alpha
+                );
+            totalPostings += static_cast<int>(firmPostings.size());
+            for (auto& posting : firmPostings) {
                 jobMarket->submitJobPosting(posting);
             }
         }
