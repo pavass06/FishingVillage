@@ -3,6 +3,7 @@
 
 #include "Agent.h"
 #include "JobMarket.h"
+#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/Market/JobTypes.h" 
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>

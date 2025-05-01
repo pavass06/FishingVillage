@@ -49,7 +49,7 @@ struct SimulationParameters {
     double alpha;            // Productivité marginale pour EUBI
 };
 
-SimulationParameters parseParametersFromFile(const std::string &filename) {
+inline SimulationParameters parseParametersFromFile(const std::string &filename) {
     SimulationParameters params;
     std::ifstream file(filename);
     if (!file.is_open()) {
