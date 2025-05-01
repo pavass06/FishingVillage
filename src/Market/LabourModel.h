@@ -1,20 +1,34 @@
-#ifndef LABOUR_DEMAND_MODELS_H
-#define LABOUR_DEMAND_MODELS_H
+#ifndef LABOURMODEL_H
+#define LABOURMODEL_H
 
 #include <string>
+#include "World.h"        // ou le header où sont définis vos FirmState/WorldState
 
-struct WorldState {
-    double economicGrowth; // Simplified example
-};
+namespace LabourDemandModels {
 
-struct FirmHistory {
-    double lastRevenue;
-    double prevRevenue;
-    int employeeCount;
-};
+    // Règle simple sur la performance passée
+    int computeJobsPastPerformance(
+        const FirmState& firm, 
+        const WorldState& world, 
+        double growthThreshold = 0.10
+    );
 
-int computeJobsPastPerformance(const WorldState& world, const FirmHistory& firm);
-int computeJobsEUBI(const WorldState& world, const FirmHistory& firm);
-int computeJobPostings(const WorldState& world, const FirmHistory& firm, const std::string& modelType);
+    // Règle Eurace@Unibi plus réaliste
+    int computeJobsEUBI(
+        const FirmState& firm, 
+        const WorldState& world, 
+        double alpha = 100.0
+    );
 
-#endif
+    // Wrapper qui choisit la règle selon un string
+    int computeJobPostings(
+        const FirmState& firm,
+        const WorldState& world,
+        const std::string& modelName,
+        double growthThreshold = 0.10,
+        double alpha = 100.0
+    );
+
+}  // namespace LabourDemandModels
+
+#endif  // LABOURMODEL_H

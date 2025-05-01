@@ -42,6 +42,9 @@ struct SimulationParameters {
 
     double postingRate;              // e.g., 0.1 (10% of current employees)
     double firingRate;               // e.g., 0.05 (5% of current employees)
+
+    //6. Choosing the model 
+    std::string labourModel;
 };
 
 SimulationParameters parseParametersFromFile(const std::string &filename) {
@@ -79,6 +82,7 @@ SimulationParameters parseParametersFromFile(const std::string &filename) {
             case 20: iss >> params.varianceDiminutionInflat; break;
             case 21: iss >> params.postingRate; break;
             case 22: iss >> params.firingRate; break;
+            case 23: iss >> params.labourModel; break;
             default: break;
         }
     }
