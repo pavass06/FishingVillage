@@ -2,8 +2,12 @@
 #include <chrono>
 #include <fstream>
 #include <algorithm>
+#include <vector>
+#include <memory>
 #include <random>
 #include <cstdlib>
+#include <cmath>
+#include <ctime>
 #include "World.h"
 #include "FishingFirm.h"
 #include "FisherMan.h"
@@ -45,32 +49,25 @@ int main(int argc, char* argv[]) {
     int initialStock = params.totalFisherMen / params.totalFirms;
     int totalEmployed = static_cast<int>(round(params.initialEmployed * params.totalFisherMen));
 
-    // Distribute employed fishermen exactly among firms.
-    int totalFirms = params.totalFirms;
-    int baseEmployeesPerFirm = totalEmployed / params.totalFirms;
-    int remainder = totalEmployed % totalFirms;
-
-    default_random_engine generator(static_cast<unsigned int>(time(0)));
+    default_random_engine generator(static_cast<unsigned int>(time(nullptr)));
     normal_distribution<double> firmFundsDist(100.0, 20.0);
-    normal_distribution<double> firmPriceDist(params.offeredPriceMean, 0.5);
+    // Deterministic pricing parameters
+    double basePrice = 5.0;
+    double stepPrice = 0.05;
     normal_distribution<double> fisherAgeDist(30, 20);
     normal_distribution<double> fisherLifetimeDist(60, 5);
 
-    // Create a vector to hold the number of initially employed fishermen for each firm.
-    vector<int> initialEmployeesForFirms(params.totalFirms, baseEmployeesPerFirm);
-    // Distribute the remainder: add one extra employee to the first 'remainder' firms.
-    for (int i = 0; i < remainder; ++i) {
-        initialEmployeesForFirms[i]++;
-    }
-
+    // Create each firm and set deterministic prices
     for (int id = 100, firmIdx = 0; id < 100 + params.totalFirms; id++, firmIdx++) {
         double funds = firmFundsDist(generator);
         int lifetime = 100000000;
-        // Construct each FishingFirm. (Here, initial employees are set to 0; they
-        // are assigned later when distributing employed fishermen.)
-        auto firm = make_shared<FishingFirm>(id, funds, lifetime, 0, initialStock, params.employeeEfficiency);
-        double price = firmPriceDist(generator);
+        auto firm = make_shared<FishingFirm>(id, funds, lifetime,
+                                             /*income=*/0, initialStock,
+                                             params.employeeEfficiency);
+        double price = basePrice + firmIdx * stepPrice;
         firm->setPriceLevel(price);
+        cout << "[DEBUG] Initial price of firm " << firm->getID()
+             << " set to " << price << endl;
         firms.push_back(firm);
     }
     world.setFirms(firms);
@@ -80,31 +77,27 @@ int main(int argc, char* argv[]) {
 
     // Create fishermen.
     vector<shared_ptr<FisherMan>> employedFishers;
-    vector<shared_ptr<FisherMan>> unemployedFishers;
     for (int id = 0; id < params.totalFisherMen; id++) {
         double lifetimeYears = fisherLifetimeDist(generator);
         double lifetime = lifetimeYears * 365;
         double ageYears = fisherAgeDist(generator);
         double age = ageYears * 365;
-        // Create all fishermen with firmID = 0 by default.
         bool initiallyEmployed = (id < static_cast<int>(params.initialEmployed));
         auto fisher = make_shared<FisherMan>(
-            id, 0.0, lifetime, age, 0.0, 1.0, 1.0,
-            0, initiallyEmployed ? params.initialWage : 0.0,
-            0.0, "fishing", 1, 1, 1
+            id, /*initFunds=*/0.0, lifetime,
+            /*income=*/age, /*savings=*/0.0,
+            /*jobDemand=*/1.0, /*goodsDemand=*/1.0,
+            /*firmID=*/0, /*wage=*/(initiallyEmployed ? params.initialWage : 0.0),
+            /*unempBenefit=*/0.0,
+            "fishing", /*edu*/1, /*exp*/1, /*pref*/1
         );
         world.addFisherMan(fisher);
         if (initiallyEmployed)
             employedFishers.push_back(fisher);
-        else
-            unemployedFishers.push_back(fisher);
     }
     // Distribute employed fishermen across firms.
-    int firmIndex = 0;
-    int numFirms = firms.size();
-    for (auto &fisher : employedFishers) {
-        firms[firmIndex]->addEmployee(fisher);
-        firmIndex = (firmIndex + 1) % numFirms;
+    for (size_t i = 0; i < employedFishers.size(); ++i) {
+        firms[i % firms.size()]->addEmployee(employedFishers[i]);
     }
 
     cout << "BEGIN program ..." << endl;
@@ -121,11 +114,13 @@ int main(int argc, char* argv[]) {
     summaryFile << "Cycle,Year,DailyGDP,CyclyGDP,Population,GDPperCapita,Unemployment,Inflation\n";
 
     auto start = chrono::high_resolution_clock::now();
+    // Dummy distribution to satisfy simulateCycle signature
+    normal_distribution<double> unusedFirmPriceDist(0.0, 1.0);
     normal_distribution<double> localConsumerPriceDist(params.perceivedPriceMean, 0.8);
     uniform_int_distribution<int> goodsQuantityDist(1, 3);
 
     for (int day = 0; day < params.totalCycles; day++) {
-        world.simulateCycle(generator, firmPriceDist, goodsQuantityDist, localConsumerPriceDist);
+        world.simulateCycle(generator, unusedFirmPriceDist, goodsQuantityDist, localConsumerPriceDist);
 
         int cycle = day + 1;
         double currentYear = cycle / params.cycleScale;
@@ -155,13 +150,10 @@ int main(int argc, char* argv[]) {
     unempFile.close();
 
     // Write firm revenue history to file.
-    // Each column corresponds to a firm (first line with IDs) and each subsequent line
-    // reports the revenue for that firm during each cycle.
-    // We assume that all firms have the same number of recorded cycles.
-    int numCycles = 0;
+    int maxCycles = 0;
     for (const auto& firm : firms) {
-        numCycles = std::max(numCycles, static_cast<int>(firm->getRevenueHistory().size()));
-        }
+        maxCycles = max(maxCycles, static_cast<int>(firm->getRevenueHistory().size()));
+    }
 
     ofstream firmRevenueFile("firm_revenu.csv");
     if (!firmRevenueFile.is_open()) {
@@ -169,23 +161,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Write header: list of firm IDs.
+    // Header: IDs
     for (size_t i = 0; i < firms.size(); i++) {
         firmRevenueFile << firms[i]->getID();
-        if (i < firms.size() - 1)
-            firmRevenueFile << ",";
+        if (i < firms.size() - 1) firmRevenueFile << ",";
     }
     firmRevenueFile << "\n";
 
-    // Write one line per cycle with each firm's revenue.
-    for (int cycle = 0; cycle < numCycles; cycle++) {
+    // Revenues
+    for (int cycle = 0; cycle < maxCycles; cycle++) {
         for (size_t i = 0; i < firms.size(); i++) {
-            const auto &history = firms[i]->getRevenueHistory();
-            // If a firm has no recorded revenue for this cycle, output 0.
-            double rev = (cycle < history.size()) ? history[cycle] : 0.0;
+            const auto &hist = firms[i]->getRevenueHistory();
+            double rev = (cycle < hist.size()) ? hist[cycle] : 0.0;
             firmRevenueFile << rev;
-            if (i < firms.size() - 1)
-                firmRevenueFile << ",";
+            if (i < firms.size() - 1) firmRevenueFile << ",";
         }
         firmRevenueFile << "\n";
     }
@@ -194,6 +183,14 @@ int main(int argc, char* argv[]) {
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
     cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
+
+    // Debug final : affichage des prix initiaux de chaque firme
+    cout << "---- DEBUG: Initial prices summary -----" << endl;
+    for (const auto &firm : firms) {
+        cout << "Firm " << firm->getID()
+             << ": initial price = " << firm->getPriceLevel() << endl;
+    }
+
     cout << "... END program" << endl;
 
     return 0;
