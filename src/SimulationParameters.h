@@ -43,8 +43,10 @@ struct SimulationParameters {
     double postingRate;              // e.g., 0.1 (10% of current employees)
     double firingRate;               // e.g., 0.05 (5% of current employees)
 
-    //6. Choosing the model 
+    //6.Labour model 
     std::string labourModel;
+    double growthThreshold;   // Seuil de croissance pour PastPerformance
+    double alpha;            // Productivité marginale pour EUBI
 };
 
 SimulationParameters parseParametersFromFile(const std::string &filename) {
@@ -83,6 +85,8 @@ SimulationParameters parseParametersFromFile(const std::string &filename) {
             case 21: iss >> params.postingRate; break;
             case 22: iss >> params.firingRate; break;
             case 23: iss >> params.labourModel; break;
+            case 24: iss >> params.growthThreshold; break;
+            case 25: iss >> params.alpha; break;
             default: break;
         }
     }
