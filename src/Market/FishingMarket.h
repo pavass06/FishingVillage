@@ -3,6 +3,7 @@
 
 #include "Market.h"
 #include "FishingFirm.h"  // Complete definition of FishingFirm is available.
+#include "LabourModel.h"
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -37,6 +38,7 @@ class FishingMarket : public Market {
 private:
     std::vector<FishOffering> offerings;
     std::vector<FishOrder> orders;
+    std::string labourDemandModel = "PastPerformance"; // ou "EUBI" selon le choix
     double aggregateSupply = 0.0;
     double aggregateDemand = 0.0;
     double matchedVolume = 0.0;
@@ -71,6 +73,21 @@ public:
         orders.push_back(order);
         aggregateDemand += order.quantity;
     }
+
+    std::vector<JobPosting> generateJobPostings(const WorldState& world) {
+        FirmHistory hist;
+        hist.lastRevenue = revenueHistory.size() >= 1 ? revenueHistory.back() : 0;
+        hist.prevRevenue = revenueHistory.size() >= 2 ? revenueHistory[revenueHistory.size() - 2] : 0;
+        hist.employeeCount = employees.size();
+    
+        int V = computeJobPostings(world, hist, labourDemandModel);
+        std::vector<JobPosting> postings;
+        for (int i = 0; i < V; ++i) {
+            postings.push_back(generateJobPosting("fishing", 0, 0, 5)); // tu peux paramétrer ici les critères
+        }
+        return postings;
+    }
+    
 
     // refreshSupply aggregates available stock from each firm.
     void refreshSupply(const std::vector<std::shared_ptr<FishingFirm>> &firms) {
