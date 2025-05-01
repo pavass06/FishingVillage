@@ -2,39 +2,16 @@
 #define JOBMARKET_H
 
 #include "Market.h"
-#include "LabourModel.h"
+#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/SimulationParameters.h"    // ← ajouté pour accéder aux params
+#include "LabourModel.h"                // ← ajouté pour computeJobPostings
+#include "JobTypes.h" 
 #include <vector>
 #include <string>
 #include <memory>
 #include <random>
 #include <iostream>
 
-// Forward declarations to avoid circular includes
-class FisherMan;
-class FishingFirm;
-
-// Struct representing a job posting from a firm
-struct JobPosting {
-    int firmID;
-    std::string jobSector;
-    int educationRequirement;
-    int experienceRequirement;
-    int attractiveness;
-    int vacancies;
-    bool recruiting;
-};
-
-// Struct representing a job application from a worker
-struct JobApplication {
-    int workerID;
-    std::string desiredSector;
-    int educationLevel;
-    int experienceLevel;
-    int preference;
-    int quantity;
-    bool matched;
-    std::shared_ptr<FisherMan> fisherman;
-};
+class FishingFirm;  // Déclaration anticipée
 
 class JobMarket : public Market {
 private:
@@ -44,11 +21,18 @@ private:
     double meanFishOrder;
     double currentFishPrice;
 
-    // Pointer to external list of firms to facilitate hiring
+    // Pointeur vers la liste des firmes pour pouvoir embaucher
     std::vector<std::shared_ptr<FishingFirm>>* firmList;
 
+    // Référence aux paramètres de simulation
+    const SimulationParameters& params;
+
 public:
-    JobMarket(double initWage, double fishPrice, double meanOrder = 1.5);
+    // Constructeur : on passe params en premier
+    JobMarket(const SimulationParameters& params,
+              double initWage,
+              double fishPrice,
+              double meanOrder = 1.5);
 
     virtual ~JobMarket();
 

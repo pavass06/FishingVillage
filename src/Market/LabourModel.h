@@ -2,29 +2,26 @@
 #define LABOURMODEL_H
 
 #include <string>
-#include "World.h"        // ou le header où sont définis vos FirmState/WorldState
+#include "../Agent/FishingFirm.h"   // Chemin relatif vers votre FishingFirm.h
 
 namespace LabourDemandModels {
 
-    // Règle simple sur la performance passée
+    /// Règle simple : croissance de CA passée
     int computeJobsPastPerformance(
-        const FirmState& firm, 
-        const WorldState& world, 
+        const FishingFirm& firm,
         double growthThreshold = 0.10
     );
 
-    // Règle Eurace@Unibi plus réaliste
+    /// Règle Eurace@Unibi : prévision → N* → ouvertures
     int computeJobsEUBI(
-        const FirmState& firm, 
-        const WorldState& world, 
+        const FishingFirm& firm,
         double alpha = 100.0
     );
 
-    // Wrapper qui choisit la règle selon un string
+    /// Wrapper modulaire : choisit la règle selon labourModelName
     int computeJobPostings(
-        const FirmState& firm,
-        const WorldState& world,
-        const std::string& modelName,
+        const FishingFirm& firm,
+        const std::string& labourModelName,
         double growthThreshold = 0.10,
         double alpha = 100.0
     );
