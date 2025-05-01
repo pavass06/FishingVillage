@@ -2,6 +2,7 @@
 #define JOBMARKET_H
 
 #include "Market.h"
+#include "LabourModel.h"
 #include <vector>
 #include <string>
 #include <memory>

@@ -1,4 +1,5 @@
 #include "JobMarket.h"
+#include "LabourModel.h"
 #include "FishingFirm.h"   // For getID(), addEmployee()
 #include "FisherMan.h"     // For FisherMan methods
 
