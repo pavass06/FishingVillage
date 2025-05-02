@@ -1,90 +1,69 @@
-# compilers
-CC=c++
+# Makefile for FishingVillage simulation
 
-OPT_FLAGS= -O2
-DBG_FLAGS=  -Wall -Wextra -pedantic -Wshadow  -Wconversion -Wnull-dereference
+# Compiler
+CC       := c++
+OPT_FLAGS:= -O2
 
-# compiling flags
-CFLAGS= $(OPT_FLAGS) --std=c++17
-# linking flags
-LFLAGS += -lstdc++
+# Debug flags
+DBG_FLAGS:= -Wall -Wextra -pedantic -Wshadow -Wconversion -Wnull-dereference
+
+# Base compile flags
+CFLAGS   := $(OPT_FLAGS) --std=c++17 -IAgent -IMarket -IWorld
+
+# Link flags
+LFLAGS   := -lstdc++
 
 ifeq ($(DEBUG),1)
- CFLAGS+= $(DBG_FLAGS) -Ddebug -g -Dverbose
-endif 
+  CFLAGS += $(DBG_FLAGS) -Ddebug -g -Dverbose
+endif
 
 ifeq ($(VERBOSE),1)
- CFLAGS+= -Dverbose
-endif 
+  CFLAGS += -Dverbose
+endif
 
+# Where to put the runnable
+RUNDIR   := ../wrk/
+EXE      := agent.exe
 
+# List exactly the .cpp files you have under src/
+cppsource := \
+    main.cpp \
+    Agent/FisherMan.cpp \
+    Market/JobMarket.cpp \
+    Market/LabourModel.cpp
 
-# Include paths for headers
-CFLAGS += -IAgent -IMarket -IWorld
+# Derive .o names
+OBJCPP    := $(cppsource:.cpp=.o)
+OBJ       := $(OBJCPP)
 
+.PHONY: all prepare clean run flags objects
 
-LDIR =
-RUNDIR = ../wrk/
+all: prepare $(EXE)
 
-EXE = agent.exe
-
-cppsource+= main.cpp Agent/FisherMan.cpp  Market/JobMarket.cpp
-# objects
-OBJCPP = $(sort $(cppsource:.cpp=.o))
-
-
-OBJ = $(OBJCPP)
-
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c -o $@ $< $(INCLUDE_PATH)
-
-$(EXE): $(OBJ)
-	$(CC) -o $@ $^ $(LFLAGS) $(LIBS_PATH) $(LIBS)
-	mv $(EXE) $(RUNDIR)
-
-all: $(EXE)
-
-prepare: 
+prepare:
 	mkdir -p $(RUNDIR)
 
+# Compile rule: .cpp → .o
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link everything into the executable, then move it to RUNDIR
+$(EXE): $(OBJ)
+	$(CC) $(OPT_FLAGS) --std=c++17 $(OBJ) -o $@ $(LFLAGS)
+	mv $@ $(RUNDIR)
+
 run: all
-	mpirun --oversubscribe -np 2 $(RUNDIR)$(EXE)
-
-.PHONY: clean all run
-
-clean:
-	rm -f *.o *~ core $(RUNDIR)$(EXE)
-	rm -f $(RUNDIR)*.txt 
+	$(RUNDIR)$(EXE) ../data/input/test1.txt
 
 flags:
-	@echo "RUNDIR=" $(RUNDIR) 
-	@echo "CFLAGS=" $(CFLAGS) 
-	@echo "LFLAGS=" $(LFLAGS) 
+	@echo "CFLAGS =" $(CFLAGS)
+	@echo "LFLAGS =" $(LFLAGS)
+	@echo "Sources:" $(cppsource)
+	@echo "Objects:" $(OBJ)
+
 objects:
-#	@echo "OBJ=" $(OBJ)
-	@echo "files=" $(cppsource)
-	
+	@echo $(OBJ)
 
-##########
-define echored
-    @tput setaf 1
-    @echo $1
-    @tput sgr0
-endef
-define echogreen
-    @tput setaf 2
-    @echo $1
-    @tput sgr0
-endef
-define echoblue
-    @tput setaf 4
-    @echo $1
-    @tput sgr0
-endef
-define echoinfo
-    @tput setaf 2
-    @echo $1 "  :  "  `tput setaf 0` $2
-    @tput sgr0
-endef
-
-
+clean:
+	rm -f Agent/*.o Market/*.o *.o $(RUNDIR)$(EXE)
+	rm -f $(RUNDIR)*.txt

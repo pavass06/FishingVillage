@@ -193,14 +193,6 @@ int main(int argc, char* argv[]) {
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
     cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
-
-    // Debug final : affichage des prix initiaux de chaque firme
-    cout << "---- DEBUG: Initial prices summary -----" << endl;
-    for (const auto &firm : firms) {
-        cout << "Firm " << firm->getID()
-             << ": initial price = " << firm->getPriceLevel() << endl;
-    }
-
     cout << "... END program" << endl;
 
     return 0;
