@@ -20,3 +20,6 @@ meanDiminutionInflat
 varianceDiminutionInflat  
 postingRate
 firingRate
+labourModel (PastPerformance or EUBI)
+growthThreshold
+alpha
