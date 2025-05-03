@@ -2,3 +2,6 @@
 *.exe
 data/simulation_summary.csv
 .DS_Store
+wrk/screen
+wrk/*.csv
+wrk/*.py

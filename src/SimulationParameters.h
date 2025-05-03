@@ -99,4 +99,77 @@ inline SimulationParameters parseParametersFromFile(const std::string &filename)
     return params;
 }
 
+inline SimulationParameters readParametersFromFile(const std::string& filename) {
+    SimulationParameters params;
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open parameters file: " + filename);
+    }
+
+#if verbose    
+    std::cout << " Reading parameters from file " << std::endl;
+#endif
+
+    std::unordered_map<std::string, std::string> kv;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // Remove comments
+        size_t comment_pos = line.find('#');
+        if (comment_pos != std::string::npos)
+            line = line.substr(0, comment_pos);
+
+        std::istringstream iss(line);
+        std::string key, value;
+        if (iss >> key >> value) {
+            kv[key] = value;
+        }
+    }
+
+    // Now parse all expected keys
+    try {
+        params.totalCycles = std::stoi(kv.at("TotalCycles"));
+        params.cycleScale = std::stod(kv.at("cycleScale"));
+        params.totalFisherMen = std::stoi(kv.at("totalFisherMen"));
+        params.annualBirthRate = std::stod(kv.at("annualBirthRate"));
+        params.maxStarvingDays = std::stoi(kv.at("maxStarvingDays"));
+        params.ageDistMean = std::stod(kv.at("ageDistMean"));
+        params.ageDistVariance = std::stod(kv.at("ageDistVariance"));
+        params.lifetimeDistMean = std::stod(kv.at("lifetimeDistMean"));
+        params.lifetimeDistVariance = std::stod(kv.at("lifetimeDistVariance"));
+
+        params.totalFirms = std::stod(kv.at("totalFirms"));  // still as fraction
+        params.initialEmployed = std::stod(kv.at("initialEmployed"));
+        params.totalJobOffers = std::stod(kv.at("totalJobOffers"));
+
+        params.initialWage = std::stod(kv.at("initialWage"));
+        params.offeredPriceMean = std::stod(kv.at("offeredPriceMean"));
+        params.perceivedPriceMean = std::stod(kv.at("perceivedPriceMean"));
+        params.employeeEfficiency = std::stod(kv.at("employeeEfficiency"));
+
+        params.meanAugmentationInflat = std::stod(kv.at("meanAugmentationInflat"));
+        params.varianceAugmentationInflat = std::stod(kv.at("varianceAugmentationInflat"));
+        params.meanDiminutionInflat = std::stod(kv.at("meanDiminutionInflat"));
+        params.varianceDiminutionInflat = std::stod(kv.at("varianceDiminutionInflat"));
+
+        params.postingRate = std::stod(kv.at("postingRate"));
+        params.firingRate = std::stod(kv.at("firingRate"));
+        params.labourModel = kv.at("labourModel");
+        params.growthThreshold = std::stod(kv.at("growthThreshold"));
+        params.alpha = std::stod(kv.at("alpha"));
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Missing required parameter in input file.");
+    }
+
+    // Convert fractions to absolute counts
+    params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
+    if (params.totalFirms < 1) params.totalFirms = 1;
+    params.initialEmployed = static_cast<int>(params.initialEmployed * params.totalFisherMen);
+    params.totalJobOffers = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
+
+    return params;
+}
+
+
+
 #endif // SIMULATIONPARAMETERS_H

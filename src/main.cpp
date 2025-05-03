@@ -23,7 +23,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     // Parse des paramètres
-    SimulationParameters params = parseParametersFromFile(argv[1]);
+    //SimulationParameters params = parseParametersFromFile(argv[1]);
+    SimulationParameters params = readParametersFromFile(argv[1]);
 
     // Création des marchés
     auto jobMarket = make_shared<JobMarket>(
@@ -103,7 +104,7 @@ int main(int argc, char* argv[]) {
     cout << "Days to simulate: " << params.totalCycles << endl;
     cout << "Initial number of fishers: " << params.totalFisherMen << endl;
     cout << "Calculated number of firms: " << params.totalFirms << endl;
-    cout << "--------------------------" << endl;
+    cout << "----------------------------------------------------------------------" << endl;
 
     ofstream summaryFile("economicdatas.csv");
     if (!summaryFile.is_open()) {
