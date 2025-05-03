@@ -9,7 +9,8 @@
 #include <random>
 #include <unordered_map>
 #include <cmath>
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/SimulationParameters.h"
+#include "../helper.h"
+#include "../SimulationParameters.h"
 #include "FisherMan.h"
 #include "Firm.h"
 #include "FishingFirm.h"
@@ -19,10 +20,9 @@
 class World {
     private:
         // **NOUVEAU** : référence aux paramètres globaux
-        const SimulationParameters& params;
+        SimulationParameters params;
     
         int currentCycle;        // Cycle courant
-        int totalCycles;         // Nombre total de cycles
         double annualBirthRate;  // Taux de naissance annuel
         int maxStarvingDays;     // Jours sans manger avant décès
     
@@ -48,45 +48,37 @@ class World {
         std::vector<double> populationAgeDistribution;
         std::vector<double> unemploymentHistory;
     
-        double postingRate; // ex. 0.1 = 10%
-        double firingRate;  // ex. 0.05 = 5%
-    
-    public:
-        // **Signature mise à jour** : params en premier
-        World(const SimulationParameters& params,
-              int cycles,
-              double annualBirthRate,
-              std::shared_ptr<JobMarket> jm,
-              std::shared_ptr<FishingMarket> fm,
-              int maxStarvingDays,
-              double offeredPriceMean,
-              double perceivedPriceMean,
-              double meanAugIn,
-              double varAugIn,
-              double meanDimIn,
-              double varDimIn,
-              double postingRate,
-              double firingRate)
-          : params(params),
-            currentCycle(0),
-            totalCycles(cycles),
-            annualBirthRate(annualBirthRate),
-            maxStarvingDays(maxStarvingDays),
-            jobMarket(jm),
-            fishingMarket(fm),
-            GDP(0.0),
-            unemploymentRate(0.0),
-            inflation(0.0),
-            currentOfferMean(offeredPriceMean),
-            currentPerceivedMean(perceivedPriceMean),
-            meanAugmentationInflat(meanAugIn),
-            varianceAugmentationInflat(varAugIn),
-            meanDiminutionInflat(meanDimIn),
-            varianceDiminutionInflat(varDimIn),
-            postingRate(postingRate),
-            firingRate(firingRate)
-        {}
+        double postingRate; 
+        double firingRate;  
 
+    public:
+
+    // constructor
+    World(SimulationParameters params_in,
+        std::shared_ptr<JobMarket> jm,
+        std::shared_ptr<FishingMarket> fm)
+      : params(params_in),
+        currentCycle(0),
+        annualBirthRate(params_in.annualBirthRate),
+        maxStarvingDays(params_in.maxStarvingDays),
+        fishers(),
+        firms(),
+        jobMarket(jm),
+        fishingMarket(fm),
+        GDP(0.0),
+        unemploymentRate(0.0),
+        inflation(0.0),
+        currentOfferMean(params_in.offeredPriceMean),
+        currentPerceivedMean(params_in.perceivedPriceMean),
+        meanAugmentationInflat(params_in.meanAugmentationInflat),
+        varianceAugmentationInflat(params_in.varianceAugmentationInflat),
+        meanDiminutionInflat(params_in.meanDiminutionInflat),
+        varianceDiminutionInflat(params_in.varianceDiminutionInflat),
+        postingRate(params_in.postingRate),
+        firingRate(params_in.firingRate)
+    {}
+    //
+  
     void setFirms(const std::vector<std::shared_ptr<FishingFirm>> &firmVec) {
         firms = firmVec;
     }
@@ -106,7 +98,13 @@ class World {
     
     double getGDP() const { return GDP; }
     double getUnemploymentRate() const { return unemploymentRate; }
-    double getInflation(int day) const { return inflations[day]; }
+    double getInflation(int day) const {
+        if (day >= 0 && static_cast<std::size_t>(day) < inflations.size()) {
+            return inflations[static_cast<std::size_t>(day)];
+        }
+        return 0.0;
+    }
+
     int getUnemployedFishers() const {
         int count = 0;
         for (const auto &fisher : fishers)
@@ -121,19 +119,41 @@ class World {
         }
         return populationAgeDistribution;
     }
+    
     double getUnemployment(int day) const {
-        if(day < unemploymentHistory.size())
-            return unemploymentHistory[day];
+        if (day >= 0 && static_cast<std::size_t>(day) < unemploymentHistory.size()) {
+            return unemploymentHistory[static_cast<std::size_t>(day)];
+        }
         return 0.0;
     }
+    
+    void print_vars()
+    {
+        std::cout << " --------------------------------------- " << std::endl;
+        std::cout << " variables in World " << std::endl; 
+        std::cout << " GDP: " << GDP << std::endl;
+        std::cout << " unemploymentRate: " << unemploymentRate << std::endl;
+        std::cout << " inflation:" << inflation << std::endl;
+        std::cout << " currentOfferMean:" << currentOfferMean << std::endl;
+        std::cout << " currentPerceivedMean:" << currentPerceivedMean << std::endl;
+        std::cout << " meanAugmentationInflat:" << meanAugmentationInflat << std::endl;
+        std::cout << " varianceAugmentationInflat:" << varianceAugmentationInflat << std::endl;
+        std::cout << " meanDiminutionInflat:" << meanDiminutionInflat << std::endl;
+        std::cout << " varianceDiminutionInflat:" << varianceDiminutionInflat << std::endl;
+        std::cout << " postingRate:" << postingRate << std::endl;
+        std::cout << " firingRate:" <<firingRate << std::endl; 
+        std::cout << " --------------------------------------- " << std::endl;
+    }
+
+
     const std::vector<double>& getUnemploymentHistory() const {
         return unemploymentHistory;
     }
     
     // Simulation d'un cycle.
     void simulateCycle(std::default_random_engine &generator,
-                       std::normal_distribution<double> &firmPriceDist,
-                       std::uniform_int_distribution<int> &goodsQuantityDist,
+                       std::normal_distribution<double> /* &firmPriceDist */,
+                       std::uniform_int_distribution<int> /* &goodsQuantityDist */,
                        std::normal_distribution<double> &consumerPriceDist) {
         std::cout << "----- Début du cycle " << currentCycle + 1 << " -----" << std::endl;
     
@@ -173,8 +193,10 @@ class World {
             double lambda = dailyBirthRate * currentPopulation;
             std::poisson_distribution<int> poissonDist(lambda);
             int newBirths = poissonDist(generator);
+            int nFishers= static_cast<int>(fishers.size());
+            int newID = 1000 + nFishers; //?? why
             for (int i = 0; i < newBirths; i++) {
-                int newID = 1000 + fishers.size();
+                newID++;
                 auto newFisher = std::make_shared<FisherMan>(
                     newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, false,
                     10.0, 0.0, "fishing", 1, 1, 1
@@ -211,8 +233,8 @@ class World {
         // Compute first (Q1) and third (Q3) quartiles.
         // Here, we use simple indexing: index = floor(n/4) for Q1, floor(3*n/4) for Q3.
         int n = static_cast<int>(firmRevenues.size());
-        double firstQuartile = (n > 0) ? firmRevenues[std::max(0, n/4)] : 0.0;
-        double thirdQuartile   = (n > 0) ? firmRevenues[std::min(n - 1, (3 * n)/4)] : 0.0;
+        double firstQuartile = (n > 0) ? firmRevenues[safeIndex(n / 4)]: 0.0;
+        double thirdQuartile = (n > 0) ? firmRevenues[safeIndex(std::min(n - 1, (3 * n) / 4))]: 0.0;
 
         std::cout << "First quartile (Q1) revenue: " << firstQuartile << std::endl;
         std::cout << "Third quartile (Q3) revenue: " << thirdQuartile << std::endl;
@@ -352,14 +374,18 @@ class World {
             std::cout << " revenue per fish : " << revenueperfish;
             int nemployees = firm->getEmployeeCount();
             std::cout << " employees : " << nemployees << std::endl;
-            totalfishsold += fishsold;
+            totalfishsold += static_cast<int>(fishsold);
             nfirm++;
             sumrevenue += aux;
         }
         sumrevenue /= nfirm;
-        std::cout << "Average revenue : " << sumrevenue << std::endl;
         GDP = dailyGDP;
+
+#if verbose
+        std::cout << "Average revenue : " << sumrevenue << std::endl;
         std::cout << "GDP quotidien : " << dailyGDP << std::endl;
+        std::cout << "Total fish sold: " << totalfishsold << std::endl;
+#endif
     
         // 6) Calcul du taux de chômage.
         int unemployedCount = 0;
@@ -367,9 +393,12 @@ class World {
             if (fisher->getFirmID() == 0)
                 unemployedCount++;
         unemploymentRate = (fishers.size() > 0) ? static_cast<double>(unemployedCount) / fishers.size() : 0.0;
-        std::cout << "Taux de chômage : " << unemploymentRate * 100 << "%" << std::endl;
         unemploymentHistory.push_back(unemploymentRate);
-    
+
+#if verbose        
+        std::cout << "Taux de chômage : " << unemploymentRate * 100 << "%" << std::endl;
+#endif
+        
         // 7) Famine: mise à jour des jours sans manger.
         std::unordered_map<int, double> purchases = fishingMarket->getPurchases();
         for (auto &fisher : fishers) {

@@ -1,5 +1,4 @@
 #include "JobMarket.h"
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/SimulationParameters.h"  
 #include "LabourModel.h"             
 #include "FishingFirm.h"   // Pour getID(), addEmployee()
 #include "FisherMan.h"     // Pour FisherMan methods
@@ -14,14 +13,15 @@ JobMarket::JobMarket(const SimulationParameters& params,
     double fishPrice,
     double meanOrder)
 : Market(initWage),
-params(params),
-matchedJobs(0),
-meanFishOrder(meanOrder),
-currentFishPrice(fishPrice),
-firmList(nullptr)
+  matchedJobs(0),
+  meanFishOrder(meanOrder),
+  currentFishPrice(fishPrice),
+  firmList(nullptr),
+  params(params)
 {
-clearingPrice = currentFishPrice * meanFishOrder;
+    clearingPrice = currentFishPrice * meanFishOrder;
 }
+
 
 JobMarket::~JobMarket() = default;
 
@@ -45,7 +45,7 @@ applications.push_back(app);
 aggregateDemand += app.quantity;
 }
 
-void JobMarket::clearMarket(std::default_random_engine &generator) {
+void JobMarket::clearMarket(std::default_random_engine & /*generator*/) {
 // 1) Chaque firme génère ses nouvelles offres selon le modèle choisi
 if (firmList) {
 for (auto &firm : *firmList) {

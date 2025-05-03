@@ -37,27 +37,16 @@ int main(int argc, char* argv[]) {
     );
 
     //Création du monde avec la nouvelle signature
-    World world(
-        params,                         // ← nouveau premier argument
-        params.totalCycles,
-        params.annualBirthRate,
-        jobMarket,
-        fishingMarket,
-        params.maxStarvingDays,
-        params.offeredPriceMean,
-        params.perceivedPriceMean,
-        params.meanAugmentationInflat,
-        params.varianceAugmentationInflat,
-        params.meanDiminutionInflat,
-        params.varianceDiminutionInflat,
-        params.postingRate,
-        params.firingRate
-    );
+    World world(params,jobMarket,fishingMarket);
 
     // Build the vector of FishingFirms.
     vector<shared_ptr<FishingFirm>> firms;
-    int initialStock = params.totalFisherMen / params.totalFirms;
+    double initialStock = params.totalFisherMen / params.totalFirms; //names wrong??
     int totalEmployed = static_cast<int>(round(params.initialEmployed * params.totalFisherMen));
+
+#if verbose
+    printf(" Total Employed =%d Initial Stock=%f \n", totalEmployed,initialStock);
+#endif    
 
     default_random_engine generator(static_cast<unsigned int>(time(nullptr)));
     normal_distribution<double> firmFundsDist(100.0, 20.0);
@@ -159,7 +148,7 @@ int main(int argc, char* argv[]) {
     }
     unempFile.close();
 
-    // Write firm revenue history to file.
+    // Write firm revenue history to file. Is this neccesary? Too complicated
     int maxCycles = 0;
     for (const auto& firm : firms) {
         maxCycles = max(maxCycles, static_cast<int>(firm->getRevenueHistory().size()));
@@ -179,7 +168,8 @@ int main(int argc, char* argv[]) {
     firmRevenueFile << "\n";
 
     // Revenues
-    for (int cycle = 0; cycle < maxCycles; cycle++) {
+    unsigned int maxCycles_sfe = static_cast<unsigned int>(maxCycles);
+    for (unsigned int cycle = 0; cycle < maxCycles_sfe; cycle++) {
         for (size_t i = 0; i < firms.size(); i++) {
             const auto &hist = firms[i]->getRevenueHistory();
             double rev = (cycle < hist.size()) ? hist[cycle] : 0.0;
