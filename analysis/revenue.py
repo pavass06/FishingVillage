@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Path to your CSV file with firm revenues.
-csv_file = "/Users/avass/Documents/1SSE/Code/FishingVillage/wrk/firm_revenu.csv"
+csv_file = "../wrk/firm_revenu.csv"
 
 # Read CSV file without header. The first row contains firm IDs.
 df = pd.read_csv(csv_file, header=None)

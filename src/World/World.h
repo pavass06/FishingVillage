@@ -170,7 +170,7 @@ class World {
             }
             currentOfferMean = sumOffered / firms.size();
         }
-        std::cout << "Moyenne des prix offerts : " << currentOfferMean << std::endl;
+        Print("Moyenne des prix offerts",currentOfferMean);
     
         // 1) Actions des pêcheurs.
         for (auto &fisher : fishers) {
@@ -188,7 +188,7 @@ class World {
         // 2) Gestion de la population : naissances via un processus de Poisson.
         {
             double normalizedAnnualBirthRate = (annualBirthRate > 1.0) ? annualBirthRate / 100.0 : annualBirthRate;
-            double dailyBirthRate = normalizedAnnualBirthRate / 365.0;
+            double dailyBirthRate = normalizedAnnualBirthRate / days_in_year;
             int currentPopulation = getTotalFishers();
             double lambda = dailyBirthRate * currentPopulation;
             std::poisson_distribution<int> poissonDist(lambda);
@@ -198,7 +198,7 @@ class World {
             for (int i = 0; i < newBirths; i++) {
                 newID++;
                 auto newFisher = std::make_shared<FisherMan>(
-                    newID, 10.0, 365 * 60, 0.0, 0.0, 1.0, 1.0, false,
+                    newID, 10.0, days_in_year * 60, 0.0, 0.0, 1.0, 1.0, false,
                     10.0, 0.0, "fishing", 1, 1, 1
                 );
                 addFisherMan(newFisher);
@@ -236,9 +236,9 @@ class World {
         double firstQuartile = (n > 0) ? firmRevenues[safeIndex(n / 4)]: 0.0;
         double thirdQuartile = (n > 0) ? firmRevenues[safeIndex(std::min(n - 1, (3 * n) / 4))]: 0.0;
 
-        std::cout << "First quartile (Q1) revenue: " << firstQuartile << std::endl;
-        std::cout << "Third quartile (Q3) revenue: " << thirdQuartile << std::endl;
-
+        Print("First quartile (Q1) revenue",firstQuartile); 
+        Print("Third quartile (Q3) revenue",thirdQuartile); 
+        
         // ------------------------
         // Firing: Each firm fires employees if its revenue is below Q1.
         int totalFired = 0;
@@ -276,16 +276,18 @@ class World {
             }
         }
 
-        std::cout << " agg demand [l232] ===> " << jobMarket->getAggregateDemand() << std::endl;
-        std::cout << " applicationsCount " << applicationsCount << std::endl;
-        std::cout << " aggregateSupply [l235] ===> " << jobMarket->getAggregateSupply() << std::endl;
-        std::cout << "applicationsPost: " << totalPostings << std::endl;
-
+        Print("aggregate demand ",jobMarket->getAggregateDemand());
+        Print("aggregate supply ",jobMarket->getAggregateSupply());
+        Print("applications Count ",applicationsCount);
+        Print("applications Post ", totalPostings);
+        
         // Matching: The job market matches offers (and hires via addEmployee).
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
-        std::cout << "Nombre de correspondances réalisées : " << matches << std::endl;
-        std::cout << "Nombre de personnes embauchées ce cycle : " << matches << std::endl;
+
+        Print("Nombre de correspondances réalisées",matches);
+
+        // ********************************************************
         jobMarket->reset();
 
         // Debug: Identify current employment state.
@@ -313,6 +315,7 @@ class World {
             return firm->getEmployeeCount() == 0;
         }), firms.end());
 
+#if verbose        
         std::cout << "---- Détails du marché de l'emploi ----" << std::endl;
         std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
         for (int id : lookingIDs)
@@ -331,6 +334,7 @@ class World {
         std::cout << "  - Nombre total d'offres d'emploi postées : " << totalPostings << std::endl;
         std::cout << "  - Nombre total de pêcheurs au chômage : " << unemployedIDs.size() << std::endl;
         std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
+#endif
 
 
         double sumPerceived = 0.0;
@@ -348,7 +352,8 @@ class World {
             fishingMarket->submitFishOrder(order);
         }
         currentPerceivedMean = (orderCount > 0) ? sumPerceived / orderCount : 0.0;
-        std::cout << "Nombre de commandes de poissons soumises : " << orderCount << std::endl;
+   
+        Print("Nombre de commandes de poissons soumises",orderCount);
 
         fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
         fishingMarket->clearMarket(generator);
@@ -367,16 +372,21 @@ class World {
             double aux = firm->getRevenue();
             dailyGDP += aux;
             firm->resetSales(); // Réinitialisation des ventes après enregistrement
-            std::cout << " firm : " << nfirm << " revenue=  " << aux;
-            double fishsold = firm->getSales();
-            std::cout << " fish sold : " << fishsold;
-            double revenueperfish = aux / std::max(fishsold, 1.0);
-            std::cout << " revenue per fish : " << revenueperfish;
+            int fishSold = firm->getSales();
+            double revenuePerFish = (fishSold > 0) ? aux / static_cast<double>(fishSold): 0.0; 
             int nemployees = firm->getEmployeeCount();
-            std::cout << " employees : " << nemployees << std::endl;
-            totalfishsold += static_cast<int>(fishsold);
+            totalfishsold += fishSold;
             nfirm++;
             sumrevenue += aux;
+            //--
+#if verbose
+            // std::cout << " firm : " << nfirm << " revenue=  " << aux;
+            // std::cout << " fish sold : " << fishSold ;
+            // std::cout << " revenue per fish : " << revenuePerFish;
+            // std::cout << " employees : " << nemployees << std::endl;
+    printf("firm : %d \t fish sold: %d  revenue per fish: %f  employees: %d\n", 
+           nfirm,fishSold,revenuePerFish,nemployees);
+#endif
         }
         sumrevenue /= nfirm;
         GDP = dailyGDP;
@@ -384,7 +394,7 @@ class World {
 #if verbose
         std::cout << "Average revenue : " << sumrevenue << std::endl;
         std::cout << "GDP quotidien : " << dailyGDP << std::endl;
-        std::cout << "Total fish sold: " << totalfishsold << std::endl;
+        std::cout << "Total fish sold (in the cycle): " << totalfishsold << std::endl;
 #endif
     
         // 6) Calcul du taux de chômage.

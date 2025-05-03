@@ -24,8 +24,6 @@ ifeq ($(VERBOSE),1)
   CFLAGS += -Dverbose
 endif
 
-CFLAGS += -Dverbose
-
 
 # Where to put the runnable
 RUNDIR   := ../wrk/
