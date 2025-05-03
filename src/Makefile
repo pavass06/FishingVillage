@@ -5,7 +5,10 @@ CC       := c++
 OPT_FLAGS:= -O2
 
 # Debug flags
-DBG_FLAGS:= -Wall -Wextra -pedantic -Wshadow -Wconversion -Wnull-dereference
+DBG_FLAGS:= -Wall -Wextra -pedantic -Wshadow -Wconversion -Wnull-dereference 
+
+# Remove some debug flags regarding unused variables
+BG_FLAGS += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field
 
 # Base compile flags
 CFLAGS   := $(OPT_FLAGS) --std=c++17 -IAgent -IMarket -IWorld
@@ -20,6 +23,9 @@ endif
 ifeq ($(VERBOSE),1)
   CFLAGS += -Dverbose
 endif
+
+CFLAGS += -Dverbose
+
 
 # Where to put the runnable
 RUNDIR   := ../wrk/

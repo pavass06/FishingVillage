@@ -2,7 +2,7 @@
 #define JOBMARKET_H
 
 #include "Market.h"
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/SimulationParameters.h"    // ← ajouté pour accéder aux params
+#include "../SimulationParameters.h"    // ← ajouté pour accéder aux params
 #include "LabourModel.h"                // ← ajouté pour computeJobPostings
 #include "JobTypes.h" 
 #include <vector>

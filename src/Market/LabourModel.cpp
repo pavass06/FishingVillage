@@ -1,5 +1,5 @@
 #include "LabourModel.h"
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/Agent/FishingFirm.h" 
+#include "../Agent/FishingFirm.h" 
 #include <cmath>      // std::ceil
 #include <algorithm>  // std::max
 

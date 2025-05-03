@@ -29,7 +29,7 @@ public:
     // Constructor with firmID parameter (0 if unemployed). Initialize looking_for_job accordingly.
     FisherMan(int id, double initFunds, int lifetime, double income, double savings,
               double jobDemand, double goodsDemand, int firmID, double wage,
-              double unemploymentBenefit, 
+              double /* unemploymentBenefit */, 
               const std::string &jobSector, int educationLevel, int experienceLevel, int jobPreference)
         : Household(id, initFunds, lifetime, income, savings, jobDemand, goodsDemand),
           firmID(firmID), wage(wage),

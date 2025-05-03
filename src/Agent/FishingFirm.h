@@ -4,8 +4,8 @@
 
 #include "Firm.h"
 #include "FisherMan.h"
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/Market/JobTypes.h"         // JobPosting, JobApplication
-#include "/Users/avass/Documents/1SSE/Code/FishingVillage/src/Market/LabourModel.h"      // computeJobPostings
+#include "../Market/JobTypes.h"         // JobPosting, JobApplication
+#include "../Market/LabourModel.h"      // computeJobPostings
 
 #include <vector>
 #include <memory>
@@ -90,7 +90,8 @@ public:
             *this, labourModelName, growthThreshold, alpha
         );
         std::vector<JobPosting> vac;
-        vac.reserve(nVacancies);
+        vac.reserve(nVacancies > 0 ? static_cast<std::vector<JobPosting>::size_type>(nVacancies) : 0);
+
         for (int i = 0; i < nVacancies; ++i) {
             // Default: call the single posting factory
             vac.push_back(generateJobPosting("fishing", 0, 0, 1));
@@ -101,7 +102,7 @@ public:
     // Firing logic (unchanged)
     void generateFiring(double firstQuartile) {
         double firmRev = getCurrentFirmRevenue();
-        bool forceFire = (static_cast<double>(rand()) / RAND_MAX < 0.05);
+       // bool forceFire = (static_cast<double>(rand()) / RAND_MAX < 0.05);
         if (firmRev < firstQuartile) {
             int numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
             numToFire = std::min(numToFire, getEmployeeCount());
