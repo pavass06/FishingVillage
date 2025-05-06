@@ -1,5 +1,5 @@
 # 1. Simulation length
-TotalCycles              200     # total days to simulate
+TotalCycles              200      # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
@@ -35,15 +35,21 @@ varianceAugmentationInflat  0.005  # variance of that factor
 meanDiminutionInflat        0.975  # factor when supply > demand
 varianceDiminutionInflat    0.005  # variance of that factor
 
-# 6. (legacy) posting/firing rates
+# useless (used in previous models)
 postingRate             0.10      # fraction of employees posting vacancies
 firingRate              0.10      # fraction of employees fired
 
-# 7. Labour model
+# 6. Labour model
 labourModel             EUBI      # options: EUBI or PastPerformance
 growthThreshold         0.10      # minimum growth rate to trigger hiring
 alpha                   100.0     # marginal productivity (revenue per worker)
 
-# 8. Goods demand
+# 7. Goods demand
 goodsQuantityMin        1         # min goods per consumer per day
 goodsQuantityMax        3         # max goods per consumer per day
+
+# 8. Fisher initial parameters
+initialFisherFunds    0.0    # initial funds for each fisher
+initialSavings        0.0    # initial savings for each fisher
+initialJobDemand      1.0    # initial job‐demand factor
+initialGoodsDemand    1.0    # initial goods‐demand factor

@@ -60,6 +60,12 @@ struct SimulationParameters {
     // 7. Goods demand
     int goodsQuantityMin;      // Minimum goods quantity per consumer
     int goodsQuantityMax;      // Maximum goods quantity per consumer
+
+     // 8. Fisher initial parameters
+     double initialFisherFunds;   // Initial funds for each fisher
+     double initialSavings;       // Initial savings for each fisher
+     double initialJobDemand;     // Initial job‐demand factor
+     double initialGoodsDemand;   // Initial goods‐demand factor
 };
 
 /**
@@ -133,6 +139,14 @@ inline SimulationParameters readParametersFromFile(const std::string& filename) 
         // 7. Goods demand
         params.goodsQuantityMin       = stoi(kv.at("goodsQuantityMin"));
         params.goodsQuantityMax       = stoi(kv.at("goodsQuantityMax"));
+
+         // 8. Fisher initial parameters
+        params.initialFisherFunds  = stod(kv.at("initialFisherFunds"));
+        params.initialSavings      = stod(kv.at("initialSavings"));
+        params.initialJobDemand    = stod(kv.at("initialJobDemand"));
+        params.initialGoodsDemand  = stod(kv.at("initialGoodsDemand"));
+
+
     }
     catch (const out_of_range&) {
         throw runtime_error("Missing required parameter in input file.");
