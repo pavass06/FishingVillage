@@ -50,17 +50,17 @@ int main(int argc, char* argv[]) {
 #endif    
 
     default_random_engine generator(static_cast<unsigned int>(time(nullptr)));
-    normal_distribution<double> firmFundsDist(100.0, 20.0);
+    normal_distribution<double> firmFundsDist(params.firmFundsDistMean, params.firmFundsVariance );
     // Deterministic pricing parameters
     double basePrice = 5.0;
     double stepPrice = 0.05;
-    normal_distribution<double> fisherAgeDist(30, 20);
-    normal_distribution<double> fisherLifetimeDist(60, 5);
+    normal_distribution<double> fisherAgeDist(params.fisherAgeMean,params.fisherAgeVariance);
+    normal_distribution<double> fisherLifetimeDist(params.fisherLifetimeMean,params.fisherLifetimeVariance);
 
     // Create each firm and set deterministic prices
     for (int id = 100, firmIdx = 0; id < 100 + params.totalFirms; id++, firmIdx++) {
         double funds = firmFundsDist(generator);
-        int lifetime = 100000000;
+        int lifetime = params.firmLifetime;;
         auto firm = make_shared<FishingFirm>(id, funds, lifetime,
                                              /*income=*/0, initialStock,
                                              params.employeeEfficiency);
@@ -115,9 +115,9 @@ int main(int argc, char* argv[]) {
 
     auto start = chrono::high_resolution_clock::now();
     // Dummy distribution to satisfy simulateCycle signature
-    normal_distribution<double> unusedFirmPriceDist(0.0, 1.0);
-    normal_distribution<double> localConsumerPriceDist(params.perceivedPriceMean, 0.8);
-    uniform_int_distribution<int> goodsQuantityDist(1, 3);
+    normal_distribution<double> unusedFirmPriceDist(params.offeredPriceMean, params.offeredPriceVariance);
+    normal_distribution<double> localConsumerPriceDist(params.perceivedPriceMean, params.perceivedPriceVariance);
+    uniform_int_distribution<int> goodsQuantityDist(params.goodsQuantityMin, params.goodsQuantityMax);
 
     for (int day = 0; day < params.totalCycles; day++) {
         world.simulateCycle(generator, unusedFirmPriceDist, goodsQuantityDist, localConsumerPriceDist);
