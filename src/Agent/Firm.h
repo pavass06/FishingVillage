@@ -71,6 +71,7 @@ public:
     void resetSales() {
          totalRevenue = 0.0;
          sales.clear();
+         nsales = 0;
     }
 
     void setWageExpense(double clearingWage) {

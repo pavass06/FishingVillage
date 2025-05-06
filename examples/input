@@ -1,5 +1,5 @@
 # 1. Simulation length
-TotalCycles              200      # total days to simulate
+TotalCycles              10       # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
@@ -19,9 +19,9 @@ totalJobOffers           0.10      # 10% of fishers receive offers
 # 4. Economic policy & market
 initialWage              5.1       # starting wage / price reference
 offeredPriceMean         5.0       # mean price offered by firms
-offeredPriceVariance     0.0       # variance of offered‐price dist.
-perceivedPriceMean       5.0       # mean price perceived by consumers
-perceivedPriceVariance   0.0       # variance of perceived‐price dist.
+offeredPriceVariance     0.5       # variance of offered‐price dist.
+perceivedPriceMean       5.0       # mean price perceived by consumers (the "worth it to buy" price)
+perceivedPriceVariance   0.8       # variance of perceived‐price dist.
 employeeEfficiency       2.0       # fish caught per fisher per day
 
 # 4.1. Firm funds & lifetime
