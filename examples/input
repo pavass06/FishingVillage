@@ -11,15 +11,16 @@ totalFirms	0.01	 # number of firms (as a fraction of initial pop)
 initialEmployed 0.90	 # 90% of fishermen employed
 totalJobOffers	0.10	 # 10% of job offers
 initialWage	5.1	 # init salary 5.1$
-offeredPriceMean 5.0	 # ??
-perceivedPriceMean 5.0	 # ??
-employeeEfficiency 2.0	 # all the same?
-meanAugmentationInflat 1.025 	  # why this number exist?
-varianceAugmentationInflat 0.005  #  
-meanDiminutionInflat 0.975	# inflation shoudl be part of the solution
-varianceDiminutionInflat 0.005  # 
-postingRate 0.10		# %of jobs posted ?
-firingRate 0.10			# %of jobs posted ?
-labourModel EUBI		# options EUBI/??	
-growthThreshold 0.10		# ??
-alpha 100.0			# ??
+offeredPriceMean 5.0	 # the average price that offers a firm
+perceivedPriceMean 5.0	 # the price perceived from a customer (he would not buy a fish if higher)
+employeeEfficiency 2.0	 # all the same 
+meanAugmentationInflat 1.025 	  # when demande > supply -> this about how much prices and salary rise
+varianceAugmentationInflat 0.005  # the variance of the inflation increase 
+meanDiminutionInflat 0.975	# when demande < supply -> this about how much prices and salary decrease 
+varianceDiminutionInflat 0.005  # the variance of the inflation decrease 
+postingRate 0.10		# useless now (used in previous models)
+firingRate 0.10			#  useless now (used in previous models)
+labourModel EUBI		# options EUBI/PastPerformance 	
+growthThreshold 0.10     # Minimum revenue growth rate (10%) required to trigger hiring in past performance model
+alpha 100.0   # Labor productivity: amount of revenue generated per worker (Y* = alpha × N)
+
