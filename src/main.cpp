@@ -54,8 +54,12 @@ int main(int argc, char* argv[]) {
     // Deterministic pricing parameters
     double basePrice = 5.0;
     double stepPrice = 0.05;
+
     normal_distribution<double> fisherAgeDist(params.fisherAgeMean,params.fisherAgeVariance);
     normal_distribution<double> fisherLifetimeDist(params.fisherLifetimeMean,params.fisherLifetimeVariance);
+
+    int nsales_total = 0;
+
 
     // Create each firm and set deterministic prices
     for (int id = 100, firmIdx = 0; id < 100 + params.totalFirms; id++, firmIdx++) {

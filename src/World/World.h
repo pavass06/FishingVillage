@@ -1,5 +1,6 @@
 #ifndef WORLD_H
 #define WORLD_H
+#define verbose 1
 
 #include <iostream>
 #include <vector>
@@ -50,6 +51,8 @@ class World {
     
         double postingRate; 
         double firingRate;  
+        int nsalespercycle;   // reset at the start of each cycle
+        int nsalestotal;      // cumulative over all cycles
 
     public:
 
@@ -75,7 +78,9 @@ class World {
         meanDiminutionInflat(params_in.meanDiminutionInflat),
         varianceDiminutionInflat(params_in.varianceDiminutionInflat),
         postingRate(params_in.postingRate),
-        firingRate(params_in.firingRate)
+        firingRate(params_in.firingRate),
+        nsalespercycle(0),
+        nsalestotal(0)
     {}
     //
   
@@ -155,6 +160,7 @@ class World {
                        std::normal_distribution<double> /* &firmPriceDist */,
                        std::uniform_int_distribution<int> /* &goodsQuantityDist */,
                        std::normal_distribution<double> &consumerPriceDist) {
+        nsalespercycle = 0;
         std::cout << "----- Début du cycle " << currentCycle + 1 << " -----" << std::endl;
     
         // 0) Actualiser l'offre du marché des poissons.
@@ -365,27 +371,36 @@ class World {
     
         // 5) Calcul du GDP.
         double dailyGDP = 0.0;
-        int nfirm = 0;
+        int    nfirm    = 0;
         double sumrevenue = 0.0;
-        int totalfishsold = 0;
+
         for (auto &firm : firms) {
             double aux = firm->getRevenue();
             dailyGDP += aux;
-            firm->resetSales(); // Réinitialisation des ventes après enregistrement
             int fishSold = firm->getSales();
-            double revenuePerFish = (fishSold > 0) ? aux / static_cast<double>(fishSold): 0.0; 
+            firm->resetSales();
+
+            nsalespercycle += fishSold;  // member
+            nsalestotal    += fishSold;  // member
+
+            double revenuePerFish = (fishSold > 0)
+                ? aux / static_cast<double>(fishSold)
+                : 0.0;
             int nemployees = firm->getEmployeeCount();
-            totalfishsold += fishSold;
             nfirm++;
             sumrevenue += aux;
-            //--
 #if verbose
             // std::cout << " firm : " << nfirm << " revenue=  " << aux;
             // std::cout << " fish sold : " << fishSold ;
             // std::cout << " revenue per fish : " << revenuePerFish;
             // std::cout << " employees : " << nemployees << std::endl;
-    printf("firm : %d \t fish sold: %d  revenue per fish: %f  employees: %d\n", 
-           nfirm,fishSold,revenuePerFish,nemployees);
+            printf("firm %2d  sold:%5d  rev/fish:%7.4f  emp:%3d  cycleSales:%5d  cumSales:%7d\n",
+                nfirm,
+                fishSold,
+                revenuePerFish,
+                nemployees,
+                nsalespercycle,
+                nsalestotal);
 #endif
         }
         sumrevenue /= nfirm;
@@ -394,7 +409,9 @@ class World {
 #if verbose
         std::cout << "Average revenue : " << sumrevenue << std::endl;
         std::cout << "GDP quotidien : " << dailyGDP << std::endl;
-        std::cout << "Total fish sold (in the cycle): " << totalfishsold << std::endl;
+        std::cout << "Total fish sold this cycle: " << nsalespercycle
+                  << " | Cumulative sales: " << nsalestotal
+                  << std::endl;
 #endif
     
         // 6) Calcul du taux de chômage.
