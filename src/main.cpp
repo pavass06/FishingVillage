@@ -84,12 +84,20 @@ int main(int argc, char* argv[]) {
         double age = ageYears * 365;
         bool initiallyEmployed = (id < static_cast<int>(params.initialEmployed));
         auto fisher = make_shared<FisherMan>(
-            id, /*initFunds=*/0.0, lifetime,
-            /*income=*/age, /*savings=*/0.0,
-            /*jobDemand=*/1.0, /*goodsDemand=*/1.0,
-            /*firmID=*/0, /*wage=*/(initiallyEmployed ? params.initialWage : 0.0),
-            /*unempBenefit=*/0.0,
-            "fishing", /*edu*/1, /*exp*/1, /*pref*/1
+            id,
+            /* initFunds */   params.initialFisherFunds,
+            /* lifetime */    lifetime,
+            /* income */      age,
+            /* savings */     params.initialSavings,
+            /* jobDemand */   params.initialJobDemand,
+            /* goodsDemand */ params.initialGoodsDemand,
+            /* firmID */      0,
+            /* wage */        (initiallyEmployed ? params.initialWage : 0.0),
+            /* unempBenefit */0.0,
+            "fishing",
+            /* edu */        1,
+            /* exp */        1,
+            /* pref */       1
         );
         world.addFisherMan(fisher);
         if (initiallyEmployed)
