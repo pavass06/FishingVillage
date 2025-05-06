@@ -1,3 +1,4 @@
+// Firm.h
 #ifndef FIRM_H
 #define FIRM_H
 
@@ -19,23 +20,21 @@ struct SaleRecord {
 
 class Firm : public Agent {
 protected:
-    int numberOfEmployees;    // Current number of workers employed by the firm
-    double stock;             // Current product inventory (in fish units)
-    double priceLevel;        // Offered price per fish (e.g., ~5.1 pounds)
-    double salesEfficiency;   // Sales efficiency factor (units each employee can sell)
-    double jobPostMultiplier; // Multiplier for the number of job posts
-    double wageExpense;       // Computed as numberOfEmployees * clearing wage
+    int numberOfEmployees;    // Current number of workers
+    double stock;             // Product inventory
+    double priceLevel;        // Price per unit
+    double salesEfficiency;   // Units each employee can sell
+    double jobPostMultiplier; // Multiplier for job posts
+    double wageExpense;       // numberOfEmployees * clearing wage
 
-    // Tracking actual sales.
-    double totalRevenue;                  // Accumulated revenue from sales
-    std::vector<SaleRecord> sales;        // List of sale transactions
+    double totalRevenue;                // Accumulated revenue
+    std::vector<SaleRecord> sales;      // Transactions
+    int nsales;                         // Sales this cycle
+    int cumulativeSales;                // Sales across all cycles
 
-    // pQuit chance: probability that an employee is dismissed (e.g., 0.1 for 10%)
-    double quitRate;
-    int nsales;
+    double quitRate;                    // Dismissal probability
 
 public:
-    // Constructor with parameters.
     Firm(int id, double initFunds, int lifetime, int numberOfEmployees,
          double stock, double priceLevel,
          double salesEfficiency = 2.0, double jobPostMultiplier = 1.05,
@@ -48,30 +47,33 @@ public:
            jobPostMultiplier(jobPostMultiplier),
            wageExpense(0.0),
            totalRevenue(0.0),
-           quitRate(quitRate), 
-           nsales(0)
+           quitRate(quitRate),
+           nsales(0),
+           cumulativeSales(0)
     {}
 
     virtual ~Firm() {}
 
-    // Revenue is based on actual sales.
+    // Returns revenue for this cycle.
     virtual double calculateRevenue() const {
          return totalRevenue;
     }
 
-    // Record a sale: update revenue and log the sale.
+    // Record a sale.
     void addSale(double salePrice, double quantity) {
          double saleValue = salePrice * quantity;
          totalRevenue += saleValue;
          sales.push_back({salePrice, quantity});
          nsales++;
+         cumulativeSales++;
     }
 
-    // Reset sales records and revenue.
+    // Reset only this cycle’s sales.
     void resetSales() {
          totalRevenue = 0.0;
          sales.clear();
          nsales = 0;
+         // cumulativeSales is NOT reset
     }
 
     void setWageExpense(double clearingWage) {
@@ -82,42 +84,40 @@ public:
          return calculateRevenue() - wageExpense;
     }
 
-    // Update stock based on sales and production.
+    // Update inventory.
     virtual void updateStock() {
-          double sold = 0.0;
-          for (const auto &record : sales) {
-               sold += record.quantity;
-          }
-          double remainingStock = stock - sold;
-          // Production: each employee produces (salesEfficiency) fish per day.
-          double productionCapacity = salesEfficiency * numberOfEmployees;
-          stock = std::max(remainingStock + productionCapacity, 0.0);
-          // Reset sales for the next cycle.
-          sales.clear();
+         double sold = 0.0;
+         for (const auto &record : sales) {
+              sold += record.quantity;
+         }
+         double remainingStock = stock - sold;
+         double productionCapacity = salesEfficiency * numberOfEmployees;
+         stock = std::max(remainingStock + productionCapacity, 0.0);
+         sales.clear();
     }
 
-    // New method: shareholders (or an external process) may dismiss employees
-    // with a chance of quitRate per employee.
+    // Random dismissals.
     void dismissEmployees(std::default_random_engine &generator) {
          std::binomial_distribution<int> dismissDist(numberOfEmployees, quitRate);
          int dismissals = dismissDist(generator);
          numberOfEmployees -= dismissals;
 #if verbose==1
-         std::cout << "Firm " << " dismissed " << dismissals 
-                   << " employees (pQuit process). New employee count: " 
-                   << numberOfEmployees << std::endl;
+         std::cout << "Firm " << getID() << " dismissed " << dismissals 
+                   << " employees. New count: " << numberOfEmployees << std::endl;
 #endif
     }
 
-    // In act(), the firm now only updates its stock and funds.
-    // The process of matching job applicants to vacancies and the subsequent hiring is handled in the JobMarket.
+    // Called each cycle.
     virtual void act() override {
          updateStock();
          funds += calculateRevenue() - wageExpense;
-         // Optionally, resetSales() may be called here if desired.
     }
-    virtual JobPosting generateJobPosting(const std::string &sector, int eduReq, int expReq, int attract) const = 0;
-    
+
+    virtual JobPosting generateJobPosting(const std::string &sector,
+                                          int eduReq,
+                                          int expReq,
+                                          int attract) const = 0;
+
     virtual void update() override {
          Agent::update();
     }
@@ -127,22 +127,21 @@ public:
 #if verbose==1
          std::cout << "Employees: " << numberOfEmployees 
                    << " | Stock: " << stock 
-                   << " | Price Level: " << priceLevel 
-                   << " | Sales Efficiency: " << salesEfficiency 
-                   << " | Job Post Multiplier: " << jobPostMultiplier 
-                   << " | Wage Expense: " << wageExpense 
+                   << " | Price: " << priceLevel 
+                   << " | SalesEff: " << salesEfficiency 
+                   << " | WageExp: " << wageExpense 
                    << " | Revenue: " << calculateRevenue() 
                    << " | Profit: " << calculateProfit() << std::endl;
-         std::cout << "Fish Produced (Daily Output): " << (salesEfficiency * numberOfEmployees) << std::endl;
+         std::cout << "Fish Prod: " << (salesEfficiency * numberOfEmployees) << std::endl;
          std::cout << "Sales Records:" << std::endl;
-         for (const auto &record : sales) {
-             std::cout << "  Price: " << record.salePrice 
-                       << " | Quantity: " << record.quantity << std::endl;
+         for (const auto &r : sales) {
+             std::cout << "  Price: " << r.salePrice 
+                       << " | Qty: " << r.quantity << std::endl;
          }
 #endif
     }
 
-    // Getters and setters.
+    // Getters / setters
     int getNumberOfEmployees() const { return numberOfEmployees; }
     void setNumberOfEmployees(int ne) { numberOfEmployees = ne; }
 
@@ -152,7 +151,8 @@ public:
     double getPriceLevel() const { return priceLevel; }
     void setPriceLevel(double p) { priceLevel = p; }
 
-    int getSales() const { return nsales;}
+    int getSales() const { return nsales; }
+    int getCumulativeSales() const { return cumulativeSales; }
 
     double getSalesEfficiency() const { return salesEfficiency; }
     void setSalesEfficiency(double se) { salesEfficiency = se; }

@@ -51,8 +51,11 @@ class World {
     
         double postingRate; 
         double firingRate;  
-        int nsalespercycle;   // reset at the start of each cycle
-        int nsalestotal;      // cumulative over all cycles
+
+        int nsalespercycle;       // per-cycle sales of the *current* firm
+        int nsalestotal;          // cumulative sales of the *current* firm
+        int cycleSalesAllFirms;   // per-cycle sales across *all* firms
+        int totalSalesAllFirms;   // cumulative sales across *all* firms
 
     public:
 
@@ -80,7 +83,9 @@ class World {
         postingRate(params_in.postingRate),
         firingRate(params_in.firingRate),
         nsalespercycle(0),
-        nsalestotal(0)
+        nsalestotal(0),
+        cycleSalesAllFirms(0),
+        totalSalesAllFirms(0)
     {}
     //
   
@@ -160,7 +165,8 @@ class World {
                        std::normal_distribution<double> /* &firmPriceDist */,
                        std::uniform_int_distribution<int> /* &goodsQuantityDist */,
                        std::normal_distribution<double> &consumerPriceDist) {
-        nsalespercycle = 0;
+        nsalespercycle     = 0;
+        cycleSalesAllFirms = 0;
         std::cout << "----- Début du cycle " << currentCycle + 1 << " -----" << std::endl;
     
         // 0) Actualiser l'offre du marché des poissons.
@@ -370,48 +376,46 @@ class World {
         }
     
         // 5) Calcul du GDP.
-        double dailyGDP = 0.0;
-        int    nfirm    = 0;
-        double sumrevenue = 0.0;
+        for (auto& f: firms) f->recordRevenue();
 
-        for (auto &firm : firms) {
-            double aux = firm->getRevenue();
-            dailyGDP += aux;
-            int fishSold = firm->getSales();
-            firm->resetSales();
+        // 6) GDP & sales debug
+        double dailyGDP=0, sumRev=0;
+        int nfirm=0;
+        for (auto& f: firms) {
+            double rev = f->getRevenue();
+            dailyGDP += rev;
 
-            nsalespercycle += fishSold;  // member
-            nsalestotal    += fishSold;  // member
+            int soldThisCycle = f->getSales();
+            int soldTotal     = f->getCumulativeSales();
+            f->resetSales();
 
-            double revenuePerFish = (fishSold > 0)
-                ? aux / static_cast<double>(fishSold)
-                : 0.0;
-            int nemployees = firm->getEmployeeCount();
-            nfirm++;
-            sumrevenue += aux;
+            // per‐firm counters
+            nsalespercycle = soldThisCycle;
+            nsalestotal    = soldTotal;
+            // all‐firms per‐cycle
+            cycleSalesAllFirms += soldThisCycle;
+
+            double revPerFish = soldThisCycle>0? rev/soldThisCycle:0.0;
+            int emp = f->getEmployeeCount();
+            ++nfirm;
+            sumRev += rev;
 #if verbose
-            // std::cout << " firm : " << nfirm << " revenue=  " << aux;
-            // std::cout << " fish sold : " << fishSold ;
-            // std::cout << " revenue per fish : " << revenuePerFish;
-            // std::cout << " employees : " << nemployees << std::endl;
-            printf("firm %2d  sold:%5d  rev/fish:%7.4f  emp:%3d  cycleSales:%5d  cumSales:%7d\n",
-                nfirm,
-                fishSold,
-                revenuePerFish,
-                nemployees,
-                nsalespercycle,
-                nsalestotal);
+printf(
+    "firm %2d | sold:%5d | rev/fish:%7.4f | emp:%3d | thisFirm_cycle:%5d | thisFirm_total:%7d\n",
+    nfirm, soldThisCycle, revPerFish, emp, nsalespercycle, nsalestotal
+  );
 #endif
-        }
-        sumrevenue /= nfirm;
-        GDP = dailyGDP;
+}
+sumRev /= nfirm;
+GDP = dailyGDP;
 
 #if verbose
-        std::cout << "Average revenue : " << sumrevenue << std::endl;
-        std::cout << "GDP quotidien : " << dailyGDP << std::endl;
-        std::cout << "Total fish sold this cycle: " << nsalespercycle
-                  << " | Cumulative sales: " << nsalestotal
-                  << std::endl;
+        totalSalesAllFirms += cycleSalesAllFirms;
+        std::cout << "Average revenue : " << sumRev << "\n"
+                  << "GDP quotidien   : " << dailyGDP << "\n"
+                  << "All‐firms this cycle: " << cycleSalesAllFirms
+                  << " | All‐firms total: "     << totalSalesAllFirms
+                  << "\n";
 #endif
     
         // 6) Calcul du taux de chômage.
