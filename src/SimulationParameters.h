@@ -7,7 +7,6 @@
 #include <stdexcept>
 #include <unordered_map>
 
-
 using namespace std;
 
 struct SimulationParameters {
@@ -19,158 +18,132 @@ struct SimulationParameters {
     int totalFisherMen;              // Total number of fishers
     double annualBirthRate;          // Annual birth rate (e.g., 0.02 for 2%)
     int maxStarvingDays;             // Consecutive days without fish before death
-    double ageDistMean;              // Mean for initial age distribution
-    double ageDistVariance;          // Variance for age distribution
-    double lifetimeDistMean;         // Mean for lifetime distribution
-    double lifetimeDistVariance;     // Variance for lifetime distribution
+    double fisherAgeMean;            // Mean for initial age distribution (years)
+    double fisherAgeVariance;        // Variance for age distribution
+    double fisherLifetimeMean;       // Mean for lifetime distribution (years)
+    double fisherLifetimeVariance;   // Variance for lifetime distribution
 
-    // 3. Derived Population Fractions
-    double totalFirms;               // e.g. 0.08 means 8% of the population (fraction)
-    double initialEmployed;          // e.g. 0.90 means 90% of the population (fraction)
-    double totalJobOffers;           // e.g. 0.10 means 10% of the population (fraction)
+    // 3. Derived Population Fractions (fractions → counts after reading)
+    double totalFirms;               // Fraction of population in firms
+    double initialEmployed;          // Fraction of population initially employed
+    double totalJobOffers;           // Fraction of population with job offers
 
     // 4. Economic Policy / Market Parameters
     double initialWage;              // Baseline wage / fish price reference
     double offeredPriceMean;         // Mean offered price by firms at start
+    double offeredPriceVariance;     // Variance of offered‐price distribution
     double perceivedPriceMean;       // Mean perceived price by consumers at start
+    double perceivedPriceVariance;   // Variance of perceived‐price distribution
     double employeeEfficiency;       // Fish caught per fisher per day
 
+    // 4.1. Firm initial‐funds distribution
+    double firmFundsDistMean;        // Mean of firm‐funds distribution
+    double firmFundsVariance;        // Variance of firm‐funds distribution
+
+    // 4.2. Firm lifetime
+    int firmLifetime;                // Lifetime of firms (in days/cycles)
+
     // 5. Inflation Adjustment Parameters
-    double meanAugmentationInflat;     // Mean factor when demand > supply (e.g., 1.025)
-    double varianceAugmentationInflat;  // Variance for augmentation factor (e.g., 0.005)
-    double meanDiminutionInflat;       // Mean factor when supply > demand (e.g., 0.975)
-    double varianceDiminutionInflat;    // Variance for diminution factor (e.g., 0.005)
+    double meanAugmentationInflat;     // Mean factor when demand > supply
+    double varianceAugmentationInflat; // Variance for augmentation factor
+    double meanDiminutionInflat;       // Mean factor when supply > demand
+    double varianceDiminutionInflat;    // Variance for diminution factor
 
     double postingRate;              // e.g., 0.1 (10% of current employees)
     double firingRate;               // e.g., 0.05 (5% of current employees)
 
-    //6.Labour model 
-    std::string labourModel;
-    double growthThreshold;   // Seuil de croissance pour PastPerformance
-    double alpha;            // Productivité marginale pour EUBI
+    // 6. Labour model 
+    string labourModel;
+    double growthThreshold;   // Threshold for PastPerformance
+    double alpha;             // Marginal productivity for EUBI
+
+    // 7. Goods demand
+    int goodsQuantityMin;      // Minimum goods quantity per consumer
+    int goodsQuantityMax;      // Maximum goods quantity per consumer
 };
 
-inline SimulationParameters parseParametersFromFile(const std::string &filename) {
-    SimulationParameters params;
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open parameters file.");
-    }
-    std::string line;
-    int lineNumber = 0;
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        std::istringstream iss(line);
-        lineNumber++;
-        switch(lineNumber) {
-            case 1:  iss >> params.totalCycles; break;
-            case 2:  iss >> params.cycleScale; break;
-            case 3:  iss >> params.totalFisherMen; break;
-            case 4:  iss >> params.annualBirthRate; break;
-            case 5:  iss >> params.maxStarvingDays; break;
-            case 6:  iss >> params.ageDistMean; break;
-            case 7:  iss >> params.ageDistVariance; break;
-            case 8:  iss >> params.lifetimeDistMean; break;
-            case 9:  iss >> params.lifetimeDistVariance; break;
-            case 10: iss >> params.totalFirms; break;
-            case 11: iss >> params.initialEmployed; break;
-            case 12: iss >> params.totalJobOffers; break;
-            case 13: iss >> params.initialWage; break;
-            case 14: iss >> params.offeredPriceMean; break;
-            case 15: iss >> params.perceivedPriceMean; break;
-            case 16: iss >> params.employeeEfficiency; break;
-            case 17: iss >> params.meanAugmentationInflat; break;
-            case 18: iss >> params.varianceAugmentationInflat; break;
-            case 19: iss >> params.meanDiminutionInflat; break;
-            case 20: iss >> params.varianceDiminutionInflat; break;
-            case 21: iss >> params.postingRate; break;
-            case 22: iss >> params.firingRate; break;
-            case 23: iss >> params.labourModel; break;
-            case 24: iss >> params.growthThreshold; break;
-            case 25: iss >> params.alpha; break;
-            default: break;
-        }
-    }
-    // Conversion des paramètres fractionnaires en valeurs absolues.
-    params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
-    if (params.totalFirms < 1)
-        params.totalFirms = 1;
-    params.initialEmployed = static_cast<int>(params.initialEmployed * params.totalFisherMen);
-    params.totalJobOffers = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
-    return params;
-}
-
+/**
+ * Reads a key-value file (each line “key value”, comments start with ‘#’)
+ * and populates all fields above. Throws if any required key is missing.
+ */
 inline SimulationParameters readParametersFromFile(const std::string& filename) {
     SimulationParameters params;
     std::ifstream file(filename);
-    if (!file.is_open()) {
+    if (!file.is_open())
         throw std::runtime_error("Could not open parameters file: " + filename);
-    }
 
-#if verbose    
-    std::cout << " Reading parameters from file " << std::endl;
-#endif
-
-    std::unordered_map<std::string, std::string> kv;
-
-    std::string line;
-    while (std::getline(file, line)) {
-        // Remove comments
-        size_t comment_pos = line.find('#');
-        if (comment_pos != std::string::npos)
-            line = line.substr(0, comment_pos);
-
-        std::istringstream iss(line);
-        std::string key, value;
-        if (iss >> key >> value) {
+    // Load all key→value pairs
+    unordered_map<string,string> kv;
+    string line;
+    while (getline(file, line)) {
+        if (auto pos = line.find('#'); pos != string::npos)
+            line.resize(pos);
+        istringstream iss(line);
+        string key, value;
+        if (iss >> key >> value)
             kv[key] = value;
-        }
     }
 
-    // Now parse all expected keys
     try {
-        params.totalCycles = std::stoi(kv.at("TotalCycles"));
-        params.cycleScale = std::stod(kv.at("cycleScale"));
-        params.totalFisherMen = std::stoi(kv.at("totalFisherMen"));
-        params.annualBirthRate = std::stod(kv.at("annualBirthRate"));
-        params.maxStarvingDays = std::stoi(kv.at("maxStarvingDays"));
-        params.ageDistMean = std::stod(kv.at("ageDistMean"));
-        params.ageDistVariance = std::stod(kv.at("ageDistVariance"));
-        params.lifetimeDistMean = std::stod(kv.at("lifetimeDistMean"));
-        params.lifetimeDistVariance = std::stod(kv.at("lifetimeDistVariance"));
+        // 1. Test Configuration
+        params.totalCycles            = stoi(kv.at("TotalCycles"));
+        params.cycleScale             = stod(kv.at("cycleScale"));
 
-        params.totalFirms = std::stod(kv.at("totalFirms"));  // still as fraction
-        params.initialEmployed = std::stod(kv.at("initialEmployed"));
-        params.totalJobOffers = std::stod(kv.at("totalJobOffers"));
+        // 2. Population & Demographics
+        params.totalFisherMen         = stoi(kv.at("totalFisherMen"));
+        params.annualBirthRate        = stod(kv.at("annualBirthRate"));
+        params.maxStarvingDays        = stoi(kv.at("maxStarvingDays"));
+        params.fisherAgeMean          = stod(kv.at("fisherAgeMean"));
+        params.fisherAgeVariance      = stod(kv.at("fisherAgeVariance"));
+        params.fisherLifetimeMean     = stod(kv.at("fisherLifetimeMean"));
+        params.fisherLifetimeVariance = stod(kv.at("fisherLifetimeVariance"));
 
-        params.initialWage = std::stod(kv.at("initialWage"));
-        params.offeredPriceMean = std::stod(kv.at("offeredPriceMean"));
-        params.perceivedPriceMean = std::stod(kv.at("perceivedPriceMean"));
-        params.employeeEfficiency = std::stod(kv.at("employeeEfficiency"));
+        // 3. Fractions → keep as fractions for now
+        params.totalFirms             = stod(kv.at("totalFirms"));
+        params.initialEmployed        = stod(kv.at("initialEmployed"));
+        params.totalJobOffers         = stod(kv.at("totalJobOffers"));
 
-        params.meanAugmentationInflat = std::stod(kv.at("meanAugmentationInflat"));
-        params.varianceAugmentationInflat = std::stod(kv.at("varianceAugmentationInflat"));
-        params.meanDiminutionInflat = std::stod(kv.at("meanDiminutionInflat"));
-        params.varianceDiminutionInflat = std::stod(kv.at("varianceDiminutionInflat"));
+        // 4. Economic Policy / Market
+        params.initialWage            = stod(kv.at("initialWage"));
+        params.offeredPriceMean       = stod(kv.at("offeredPriceMean"));
+        params.offeredPriceVariance   = stod(kv.at("offeredPriceVariance"));
+        params.perceivedPriceMean     = stod(kv.at("perceivedPriceMean"));
+        params.perceivedPriceVariance = stod(kv.at("perceivedPriceVariance"));
+        params.employeeEfficiency     = stod(kv.at("employeeEfficiency"));
 
-        params.postingRate = std::stod(kv.at("postingRate"));
-        params.firingRate = std::stod(kv.at("firingRate"));
-        params.labourModel = kv.at("labourModel");
-        params.growthThreshold = std::stod(kv.at("growthThreshold"));
-        params.alpha = std::stod(kv.at("alpha"));
-    } catch (const std::out_of_range& e) {
-        throw std::runtime_error("Missing required parameter in input file.");
+        // 4.1. Firm funds & lifetime
+        params.firmFundsDistMean      = stod(kv.at("firmFundsDistMean"));
+        params.firmFundsVariance      = stod(kv.at("firmFundsVariance"));
+        params.firmLifetime           = stoi(kv.at("firmLifetime"));
+
+        // 5. Inflation
+        params.meanAugmentationInflat   = stod(kv.at("meanAugmentationInflat"));
+        params.varianceAugmentationInflat = stod(kv.at("varianceAugmentationInflat"));
+        params.meanDiminutionInflat     = stod(kv.at("meanDiminutionInflat"));
+        params.varianceDiminutionInflat = stod(kv.at("varianceDiminutionInflat"));
+
+        params.postingRate            = stod(kv.at("postingRate"));
+        params.firingRate             = stod(kv.at("firingRate"));
+
+        // 6. Labour model
+        params.labourModel            = kv.at("labourModel");
+        params.growthThreshold        = stod(kv.at("growthThreshold"));
+        params.alpha                  = stod(kv.at("alpha"));
+
+        // 7. Goods demand
+        params.goodsQuantityMin       = stoi(kv.at("goodsQuantityMin"));
+        params.goodsQuantityMax       = stoi(kv.at("goodsQuantityMax"));
+    }
+    catch (const out_of_range&) {
+        throw runtime_error("Missing required parameter in input file.");
     }
 
-    // Convert fractions to absolute counts
-    params.totalFirms = static_cast<int>(params.totalFirms * params.totalFisherMen);
-    if (params.totalFirms < 1) params.totalFirms = 1;
+    // Convert fractions → absolute counts
+    params.totalFirms      = max(1, static_cast<int>(params.totalFirms * params.totalFisherMen));
     params.initialEmployed = static_cast<int>(params.initialEmployed * params.totalFisherMen);
-    params.totalJobOffers = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
+    params.totalJobOffers  = static_cast<int>(params.totalJobOffers * params.totalFisherMen);
 
     return params;
 }
-
-
 
 #endif // SIMULATIONPARAMETERS_H
