@@ -24,11 +24,13 @@ namespace LabourDemandModels {
     ) {
         double Ystar = 0.5 * (firm.getCurrentFirmRevenue()
                               + firm.getPreviousFirmRevenue());
-        int Nstar = static_cast<int>(std::ceil(Ystar / alpha));
-        int Ncurr = firm.getEmployeeCount();
+        int Nstar = static_cast<int>(std::ceil(Ystar / alpha)); // Is the number of employee expected 
+        int Ncurr = firm.getEmployeeCount(); // The number of actual employee
         return std::max(0, Nstar - Ncurr);
     }
     
+    std::cout << "Nstar " << Nstar << std::endl;
+
     int computeJobPostings(
         const FishingFirm& firm,
         const std::string& labourModelName,
