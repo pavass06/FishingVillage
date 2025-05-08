@@ -40,7 +40,7 @@ postingRate             0.10      # fraction of employees posting vacancies
 firingRate              0.10      # fraction of employees fired
 
 # 6. Labour model
-labourModel             EUBI      # options: EUBI or PastPerformance
+labourModel             PastPerformance      # options: EUBI or PastPerformance
 growthThreshold         0.10      # minimum growth rate to trigger hiring
 alpha                   100.0     # marginal productivity (revenue per worker)
 
