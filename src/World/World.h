@@ -206,11 +206,11 @@ class World {
             std::poisson_distribution<int> poissonDist(lambda);
             int newBirths = poissonDist(generator);
             int nFishers= static_cast<int>(fishers.size());
-            int newID = 1000 + nFishers; //?? why
+            int newID = fishers.size() + nFishers; 
             for (int i = 0; i < newBirths; i++) {
                 newID++;
                 auto newFisher = std::make_shared<FisherMan>(
-                    newID, 10.0, days_in_year * 60, 0.0, 0.0, 1.0, 1.0, false,
+                    newID, 0.0, days_in_year * 60, 0.0, 0.0, 1.0, 1.0, false,
                     10.0, 0.0, "fishing", 1, 1, 1
                 );
                 addFisherMan(newFisher);
