@@ -11,10 +11,12 @@ namespace LabourDemandModels {
     ) {
         double prevRev = firm.getPreviousFirmRevenue();
         double currRev = firm.getCurrentFirmRevenue();
-        if (prevRev <= 0) return 0;
+        if (prevRev == 0) prevRev = 1e-6;
         double growth = (currRev - prevRev) / prevRev;
-        if (growth > 2*growthThreshold) return 2;
+        if (growth > 2*growthThreshold) return 2; //hire
         if (growth > growthThreshold)   return 1;
+        if (growth < -2*growthThreshold) return -2; //fire
+        if (growth < -growthThreshold)   return -1;
         return 0;
     }
     
@@ -26,7 +28,7 @@ namespace LabourDemandModels {
                               + firm.getPreviousFirmRevenue());
         int Nstar = static_cast<int>(std::ceil(Ystar / alpha));
         int Ncurr = firm.getEmployeeCount();
-        return std::max(0, Nstar - Ncurr);
+        return Nstar - Ncurr;
     }
     
     int computeJobPostings(
