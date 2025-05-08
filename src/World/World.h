@@ -18,6 +18,7 @@
 #include "JobMarket.h"
 #include "FishingMarket.h"
 
+
 class World {
     private:
         // **NOUVEAU** : référence aux paramètres globaux
@@ -238,44 +239,25 @@ class World {
             }
             firmRevenues.push_back(firmRev);
         }
-
-        // Sort the revenues in ascending order.
-        std::sort(firmRevenues.begin(), firmRevenues.end());
-
-        // Compute first (Q1) and third (Q3) quartiles.
-        // Here, we use simple indexing: index = floor(n/4) for Q1, floor(3*n/4) for Q3.
-        int n = static_cast<int>(firmRevenues.size());
-        double firstQuartile = (n > 0) ? firmRevenues[safeIndex(n / 4)]: 0.0;
-        double thirdQuartile = (n > 0) ? firmRevenues[safeIndex(std::min(n - 1, (3 * n) / 4))]: 0.0;
-
-        Print("First quartile (Q1) revenue",firstQuartile); 
-        Print("Third quartile (Q3) revenue",thirdQuartile); 
         
-        // ------------------------
-        // Firing: Each firm fires employees if its revenue is below Q1.
-        int totalFired = 0;
-        for (auto &firm : firms) {
-            int beforeCount = firm->getEmployeeCount();
-            // Use the new generateFiring method that takes Q1 as threshold.
-            firm->generateFiring(firstQuartile);
-            int afterCount = firm->getEmployeeCount();
-            totalFired += (beforeCount - afterCount);
-        }
+        
+        
 
-        // Hiring
-        int totalPostings = 0;
-        for (auto& firm : firms) {
-            std::vector<JobPosting> firmPostings =
-                firm->generateJobPostings(
-                    params.labourModel,
-                    params.growthThreshold,
-                    params.alpha
-                );
-            totalPostings += static_cast<int>(firmPostings.size());
-            for (auto& posting : firmPostings) {
-                jobMarket->submitJobPosting(posting);
-            }
-        }
+         // Hiring or Firing 
+         int totalPostings = 0;
+         int totalFired    = 0;
+         for (auto& firm : firms) {
+             std::vector<JobPosting> firmPostings =
+                 firm->generateJobPostings(
+                     params.labourModel,
+                     params.growthThreshold,
+                     params.alpha
+                 );
+             totalPostings += static_cast<int>(firmPostings.size());
+             for (auto& posting : firmPostings) {
+                 jobMarket->submitJobPosting(posting);
+             }
+         }
 
         // Fishermen without a job (firmID == 0) and actively looking for work apply.
         int applicationsCount = 0;
