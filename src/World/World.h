@@ -365,11 +365,25 @@ class World {
         }
         currentPerceivedMean = (orderCount > 0) ? sumPerceived / orderCount : 0.0;
    
-        Print("Nombre de commandes de poissons soumises",orderCount);
+        Print("Nombre de commandes de poissons soumises", orderCount);
 
-        fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
+        // → Contrainte budgétaire : les pêcheurs ne peuvent pas dépenser plus que leurs fonds
+        double totalBudget = 0.0;
+        for (auto& fm : fishers) {
+            totalBudget += fm->getFunds();
+        }
+
+        // Prix de référence utilisé pour déterminer la demande : dernier prix d'équilibre
+        double priceGuess = fishingMarket->getClearingPrice();
+
+        // Si le prix est strictement positif, on calcule la demande implicite par le budget global
+        double impliedDemand = (priceGuess > 0.0)
+                            ? totalBudget / priceGuess
+                            : static_cast<double>(getTotalFishers()); // fallback : 1 poisson par pêcheur
+
+        fishingMarket->setAggregateDemand(impliedDemand);
         fishingMarket->clearMarket(generator);
-
+        
         // Now, record the revenue for each firm only once—after processing fish market orders.
         for (auto &firm : firms) {
             firm->recordRevenue();
