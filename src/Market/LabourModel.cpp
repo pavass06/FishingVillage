@@ -15,8 +15,8 @@ namespace LabourDemandModels {
         double growth = (currRev - prevRev) / prevRev;
         if (growth > 2*growthThreshold) return 2;
         if (growth > growthThreshold)   return 1;
-        if (growth < 2*growthThreshold) return -2;
-        if (growth < growthThreshold)   return -1;
+        if (growth < -2*growthThreshold) return -2;
+        if (growth < -growthThreshold)   return -1;
         return 0;
     }
     
