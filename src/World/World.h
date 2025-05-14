@@ -331,25 +331,33 @@ class World {
 #endif
 
 
-        double sumPerceived = 0.0;
+        // --- before you open the loop ---
         int orderCount = 0;
-        for (auto &fisher : fishers) {
-            FishOrder order;
-            order.id = fisher->getID();
-            order.desiredSector = "fishing";
-            order.quantity = 1.0;  // In this model, each order is 1.
-            order.perceivedValue = consumerPriceDist(generator);
-            sumPerceived += order.perceivedValue;
-            orderCount++;
-            order.availableFunds = fisher->getFunds();
-            order.hungry = (daysWithoutEat[fisher->getID()] > 0);
-            fishingMarket->submitFishOrder(order);
-        }
-        currentPerceivedMean = (orderCount > 0) ? sumPerceived / orderCount : 0.0;
-   
-        Print("Nombre de commandes de poissons soumises",orderCount);
+        double sumPerceived = 0.0;
 
-        fishingMarket->setAggregateDemand(static_cast<double>(getTotalFishers()));
+        for (auto &fisher : fishers) {
+            double funds = fisher->getFunds();
+            if (funds <= 0.0) 
+                continue;           // skip those with no buying power
+
+            FishOrder order;
+            order.id             = fisher->getID();
+            order.desiredSector  = "fishing";
+            order.quantity       = 1.0;
+            order.perceivedValue = consumerPriceDist(generator);
+            order.availableFunds = funds;
+            order.hungry         = (daysWithoutEat[fisher->getID()] > 0);
+
+            fishingMarket->submitFishOrder(order);
+            sumPerceived += order.perceivedValue;
+            ++orderCount;
+        }
+
+        // **Key change**: use actual orders, not total fishers
+        fishingMarket->setAggregateDemand(static_cast<double>(orderCount));
+        currentPerceivedMean = (orderCount > 0) ? sumPerceived / orderCount : 0.0;
+        Print("Nombre de commandes de poissons soumises", orderCount);
+
         fishingMarket->clearMarket(generator);
 
         // Now, record the revenue for each firm only once—after processing fish market orders.
