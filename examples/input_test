@@ -42,7 +42,7 @@ firingRate              0.10      # fraction of employees fired
 # 6. Labour model
 labourModel             EUBI      # options: EUBI or PastPerformance
 growthThreshold         0.05      # minimum growth rate to trigger hiring
-alpha                   100.0     # marginal productivity (revenue per worker)
+alpha                   4.5     # marginal productivity (revenue per worker)
 
 # 7. Goods demand
 goodsQuantityMin        1         # min goods per consumer per day

@@ -288,10 +288,47 @@ class World {
         for (const auto &fisher : fishers) {
             if (fisher->getFirmID() == 0) unemployedIDs.push_back(fisher->getID());
         }
+        std::vector<int> employedIDs;
+        std::vector<int> lookingIDs;
+        std::vector<int> firedIDs;
+        for (const auto &fisher : fishers) {
+            int id = fisher->getID();
+            if (fisher->getFirmID() == 0) {
+                unemployedIDs.push_back(id);
+                if (fisher->isLookingForJob())
+                    lookingIDs.push_back(id);
+            } else {
+                employedIDs.push_back(id);
+            }
+            if (prevFirmIDs[id] != 0 && fisher->getFirmID() == 0) {
+                firedIDs.push_back(id);
+            }
+        }
+
         double unemploymentRate = (fishers.empty() ? 0.0 : static_cast<double>(unemployedIDs.size()) / fishers.size());
+
+        // If a firm has no employees, it is removed from the simulation.
+        firms.erase(std::remove_if(firms.begin(), firms.end(),
+        [](const std::shared_ptr<FishingFirm>& firm) {
+            return firm->getEmployeeCount() == 0;
+        }), firms.end());
 
         // now your verbose debug:
         #if verbose
+        std::cout << "---- Details du marché de l'emploi ----" << std::endl;
+        std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
+        for (int id : lookingIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "FISHERS EMPLOYÉS (Having a job): ";
+        for (int id : employedIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "FISHERS LICENCIÉS CE CYCLE (Fired this cycle): ";
+        for (int id : firedIDs)
+            std::cout << id << " ";
+        std::cout << std::endl;
+        std::cout << "Récapitulatif:" << std::endl;
         std::cout << "---- Employment Market Recap ----\n";
         for (auto &e : firmFlows)
             std::cout << "Firm " << e.first
