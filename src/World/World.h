@@ -243,21 +243,42 @@ class World {
         
         
 
-         // Hiring or Firing 
-         int totalPostings = 0;
-         int totalFired    = 0;
-         for (auto& firm : firms) {
-             std::vector<JobPosting> firmPostings =
-                 firm->generateJobPostings(
-                     params.labourModel,
-                     params.growthThreshold,
-                     params.alpha
-                 );
-             totalPostings += static_cast<int>(firmPostings.size());
-             for (auto& posting : firmPostings) {
-                 jobMarket->submitJobPosting(posting);
-             }
-         }
+        // Hiring or Firing 
+        int totalPostings = 0;
+        int totalFired = 0;
+        // std::map<int, std::pair<int, int>> firmFlows; // firmID -> (hires, fires)
+
+        for (auto& firm : firms) {
+            // 1) Get the signed net change (hires – fires)
+            int delta = LabourDemandModels::computeJobPostings(
+                *firm,
+                params.labourModel,
+                params.growthThreshold,
+                params.alpha
+            );
+
+            if (delta > 0) {
+                // → Hire: generate +delta job postings
+                totalPostings += delta;
+                auto postings = firm->generateJobPostings(
+                    params.labourModel,
+                    params.growthThreshold,
+                    params.alpha
+                );
+                for (auto& p : postings) {
+                    jobMarket->submitJobPosting(p);
+                }
+                // firmFlows[firm->getID()].first += delta;
+
+            } else if (delta < 0) {
+                // → Fire: remove –delta employees
+                int toFire = -delta;
+                firm->generateFiringUsingLabourModel(toFire);
+                totalFired += toFire;
+                // firmFlows[firm->getID()].second += toFire;
+            }
+            // else delta == 0 → do nothing
+        }
 
         // Fishermen without a job (firmID == 0) and actively looking for work apply.
         int applicationsCount = 0;
