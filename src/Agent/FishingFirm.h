@@ -99,20 +99,6 @@ public:
         return vac;
     }
 
-    // Firing logic (unchanged)
-    void generateFiring(double firstQuartile) {
-        double firmRev = getCurrentFirmRevenue();
-       // bool forceFire = (static_cast<double>(rand()) / RAND_MAX < 0.05);
-        if (firmRev < firstQuartile) {
-            int numToFire = static_cast<int>(std::ceil(std::log(firmRev + 1)));
-            numToFire = std::min(numToFire, getEmployeeCount());
-            std::shuffle(employees.begin(), employees.end(), std::default_random_engine(std::random_device{}()));
-            for (int i = 0; i < numToFire && !employees.empty(); ++i) {
-                employees.front()->setFirmID(0);
-                employees.erase(employees.begin());
-            }
-        }
-    }
 
     void addEmployee(std::shared_ptr<FisherMan> emp) {
         if (emp->getFirmID() == 0) {
