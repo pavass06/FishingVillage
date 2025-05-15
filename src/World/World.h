@@ -18,7 +18,6 @@
 #include "JobMarket.h"
 #include "FishingMarket.h"
 #include "LabourModel.h"
-#include "helper.h"
 
 
 class World {
@@ -250,36 +249,36 @@ class World {
 
         for (auto& firm : firms) {
             int firmID = firm->getID();
-            int delta = 0;
-            if (params.labourModel == LabourModel::PastPerformance) {
-                delta = LabourDemandModels::computePastPerformance(
-                    *firm,
-                    params.pastPerformanceWindow
-                );
-            } else if (params.labourModel == LabourModel::EUBI) {
-                delta = LabourDemandModels::computeEUBI(
-                    *firm,
-                    params.alpha
-                );
-            }
+            int delta   = 0;
 
+            // compare strings, since SimulationParameters::labourModel is a string
+            if      (params.labourModel == "PastPerformance") {
+                delta = LabourDemandModels::computeJobsPastPerformance(
+                            *firm, params.growthThreshold);
+            }
+            else if (params.labourModel == "EUBI") {
+                delta = LabourDemandModels::computeJobsEUBI(
+                            *firm, params.alpha);
+            }
             int hires = 0, fires = 0;
             if (delta > 0) {
                 hires = delta;
                 totalHires += hires;
-                auto postings = firm->generateJobPostings(hires);
-                for (auto& p : postings) jobMarket->submitJobPosting(p);
-            } else if (delta < 0) {
+                auto postings = firm->generateJobPostings(
+                                    params.labourModel,
+                                    params.growthThreshold,
+                                    params.alpha);
+                for (auto& p : postings)
+                    jobMarket->submitJobPosting(p);
+            }
+            else if (delta < 0) {
                 fires = -delta;
                 totalFires += fires;
                 firm->fireEmployees(fires);
             }
-
-            // Store per-firm flows
             firmFlows[firmID] = {hires, fires};
         }
 
-        // Matching: The job market matches offers (and hires via addEmployee).
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
         jobMarket->reset();
@@ -291,21 +290,22 @@ class World {
         }
         double unemploymentRate = (fishers.empty() ? 0.0 : static_cast<double>(unemployedIDs.size()) / fishers.size());
 
-    #if verbose
-        std::cout << "---- Employment Market Recap ----" << std::endl;
-        for (auto &entry : firmFlows) {
-            std::cout << "Firm " << entry.first
-                    << " hired " << entry.second.first
-                    << ", fired "  << entry.second.second
-                    << std::endl;
-        }
-        std::cout << "Total hired this cycle: " << totalHires << std::endl;
-        std::cout << "Total fired this cycle: " << totalFires << std::endl;
-        std::cout << "Total matches (hires)  : " << matches << std::endl;
-        std::cout << "Unemployed count     : " << unemployedIDs.size() << std::endl;
-        std::cout << "Unemployment rate (%) : " << unemploymentRate * 100 << "%" << std::endl;
-    #endif("Total hired this step: " + std::to_string(totalHires));
-        Print("Total fired this step: " + std::to_string(totalFires));
+        // now your verbose debug:
+        #if verbose
+        std::cout << "---- Employment Market Recap ----\n";
+        for (auto &e : firmFlows)
+            std::cout << "Firm " << e.first
+                    << " hired " << e.second.first
+                    << ", fired " << e.second.second << "\n";
+        std::cout << "Total hired this cycle: " << totalHires << "\n"
+                << "Total fired this cycle: " << totalFires << "\n"
+                << "Total matches (hires): "    << matches     << "\n"
+                << "Unemployed count: "        << unemployedIDs.size() << "\n"
+                << "Unemployment rate (%): "   << unemploymentRate*100 << "%\n";
+
+        Print("Total hired this step", totalHires);
+        Print("Total fired this step", totalFires);
+        #endif
 
 
         // --- before you open the loop ---

@@ -84,6 +84,12 @@ public:
          return calculateRevenue() - wageExpense;
     }
 
+    void fireEmployees(int count) {
+     // don’t fire more than you have
+     int actual = std::min(count, numberOfEmployees);
+     numberOfEmployees -= actual;
+     }
+
     // Update inventory.
     virtual void updateStock() {
          double sold = 0.0;
