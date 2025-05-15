@@ -330,14 +330,14 @@ class World {
         std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
 #endif
 
-
         // --- before you open the loop ---
         int orderCount = 0;
         double sumPerceived = 0.0;
+        double minAskPrice = fishingMarket->getMinAskPrice();
 
         for (auto &fisher : fishers) {
             double funds = fisher->getFunds();
-            if (funds <= 0.0) 
+            if (funds < minAskPrice) 
                 continue;           // skip those with no buying power
 
             FishOrder order;

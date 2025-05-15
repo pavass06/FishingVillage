@@ -10,6 +10,7 @@
 #include <memory>
 #include <unordered_map>
 #include <iostream>
+#include <limits>
 
 // -----------------------------------------------------------------------------
 // FishOffering: one supply offer from a firm
@@ -95,6 +96,14 @@ public:
             offerings.push_back(o);
             aggregateSupply += stock;
         }
+    }
+
+    // Return the lowest ask price among current offerings
+    double getMinAskPrice() const {
+        double minP = std::numeric_limits<double>::infinity();
+        for (auto &offer : offerings)
+            minP = std::min(minP, offer.offeredPrice);
+        return (minP == std::numeric_limits<double>::infinity() ? 0.0 : minP);
     }
 
     // --- Market clearing: continuous double‐auction ---
