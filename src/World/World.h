@@ -17,6 +17,8 @@
 #include "FishingFirm.h"
 #include "JobMarket.h"
 #include "FishingMarket.h"
+#include "LabourModel.h"
+#include "helper.h"
 
 
 class World {
@@ -240,116 +242,71 @@ class World {
             firmRevenues.push_back(firmRev);
         }
         
-        
-        
-
-        // Hiring or Firing 
-        int totalPostings = 0;
-        int totalFired = 0;
-        // std::map<int, std::pair<int, int>> firmFlows; // firmID -> (hires, fires)
+         
+        // Hiring or Firing based on selected labour model
+        std::unordered_map<int, std::pair<int,int>> firmFlows;
+        int totalHires = 0;
+        int totalFires = 0;
 
         for (auto& firm : firms) {
-            // 1) Get the signed net change (hires – fires)
-            int delta = LabourDemandModels::computeJobPostings(
-                *firm,
-                params.labourModel,
-                params.growthThreshold,
-                params.alpha
-            );
-
-            if (delta > 0) {
-                // → Hire: generate +delta job postings
-                totalPostings += delta;
-                auto postings = firm->generateJobPostings(
-                    params.labourModel,
-                    params.growthThreshold,
+            int firmID = firm->getID();
+            int delta = 0;
+            if (params.labourModel == LabourModel::PastPerformance) {
+                delta = LabourDemandModels::computePastPerformance(
+                    *firm,
+                    params.pastPerformanceWindow
+                );
+            } else if (params.labourModel == LabourModel::EUBI) {
+                delta = LabourDemandModels::computeEUBI(
+                    *firm,
                     params.alpha
                 );
-                for (auto& p : postings) {
-                    jobMarket->submitJobPosting(p);
-                }
-                // firmFlows[firm->getID()].first += delta;
+            }
 
+            int hires = 0, fires = 0;
+            if (delta > 0) {
+                hires = delta;
+                totalHires += hires;
+                auto postings = firm->generateJobPostings(hires);
+                for (auto& p : postings) jobMarket->submitJobPosting(p);
             } else if (delta < 0) {
-                // → Fire: remove –delta employees
-                int toFire = -delta;
-                firm->generateFiringUsingLabourModel(toFire);
-                totalFired += toFire;
-                // firmFlows[firm->getID()].second += toFire;
+                fires = -delta;
+                totalFires += fires;
+                firm->fireEmployees(fires);
             }
-            // else delta == 0 → do nothing
+
+            // Store per-firm flows
+            firmFlows[firmID] = {hires, fires};
         }
 
-        // Fishermen without a job (firmID == 0) and actively looking for work apply.
-        int applicationsCount = 0;
-        for (auto &fisher : fishers) {
-            if (fisher->getFirmID() == 0 && fisher->isLookingForJob()) {
-                JobApplication app = fisher->generateJobApplication();
-                app.fisherman = fisher;
-                jobMarket->submitJobApplication(app);
-                applicationsCount++;
-            }
-        }
-
-        Print("aggregate demand ",jobMarket->getAggregateDemand());
-        Print("aggregate supply ",jobMarket->getAggregateSupply());
-        Print("applications Count ",applicationsCount);
-        Print("applications Post ", totalPostings);
-        
         // Matching: The job market matches offers (and hires via addEmployee).
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
-
-        Print("Nombre de correspondances réalisées",matches);
-
-        // ********************************************************
         jobMarket->reset();
 
         // Debug: Identify current employment state.
         std::vector<int> unemployedIDs;
-        std::vector<int> employedIDs;
-        std::vector<int> lookingIDs;
-        std::vector<int> firedIDs;
         for (const auto &fisher : fishers) {
-            int id = fisher->getID();
-            if (fisher->getFirmID() == 0) {
-                unemployedIDs.push_back(id);
-                if (fisher->isLookingForJob())
-                    lookingIDs.push_back(id);
-            } else {
-                employedIDs.push_back(id);
-            }
-            if (prevFirmIDs[id] != 0 && fisher->getFirmID() == 0) {
-                firedIDs.push_back(id);
-            }
+            if (fisher->getFirmID() == 0) unemployedIDs.push_back(fisher->getID());
         }
+        double unemploymentRate = (fishers.empty() ? 0.0 : static_cast<double>(unemployedIDs.size()) / fishers.size());
 
-        // If a firm has no employees, it is removed from the simulation.
-        firms.erase(std::remove_if(firms.begin(), firms.end(),
-        [](const std::shared_ptr<FishingFirm>& firm) {
-            return firm->getEmployeeCount() == 0;
-        }), firms.end());
+    #if verbose
+        std::cout << "---- Employment Market Recap ----" << std::endl;
+        for (auto &entry : firmFlows) {
+            std::cout << "Firm " << entry.first
+                    << " hired " << entry.second.first
+                    << ", fired "  << entry.second.second
+                    << std::endl;
+        }
+        std::cout << "Total hired this cycle: " << totalHires << std::endl;
+        std::cout << "Total fired this cycle: " << totalFires << std::endl;
+        std::cout << "Total matches (hires)  : " << matches << std::endl;
+        std::cout << "Unemployed count     : " << unemployedIDs.size() << std::endl;
+        std::cout << "Unemployment rate (%) : " << unemploymentRate * 100 << "%" << std::endl;
+    #endif("Total hired this step: " + std::to_string(totalHires));
+        Print("Total fired this step: " + std::to_string(totalFires));
 
-#if verbose        
-        std::cout << "---- Détails du marché de l'emploi ----" << std::endl;
-        std::cout << "FISHERS EN RECHERCHE D'EMPLOI (Looking for job): ";
-        for (int id : lookingIDs)
-            std::cout << id << " ";
-        std::cout << std::endl;
-        std::cout << "FISHERS EMPLOYÉS (Having a job): ";
-        for (int id : employedIDs)
-            std::cout << id << " ";
-        std::cout << std::endl;
-        std::cout << "FISHERS LICENCIÉS CE CYCLE (Fired this cycle): ";
-        for (int id : firedIDs)
-            std::cout << id << " ";
-        std::cout << std::endl;
-        std::cout << "Récapitulatif:" << std::endl;
-        std::cout << "  - Nombre total de licenciements : " << totalFired << std::endl;
-        std::cout << "  - Nombre total d'offres d'emploi postées : " << totalPostings << std::endl;
-        std::cout << "  - Nombre total de pêcheurs au chômage : " << unemployedIDs.size() << std::endl;
-        std::cout << "  - Nombre de correspondances (embauches) réalisées : " << matches << std::endl;
-#endif
 
         // --- before you open the loop ---
         int orderCount = 0;
