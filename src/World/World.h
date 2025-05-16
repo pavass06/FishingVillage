@@ -303,8 +303,24 @@ class World {
                 fires = -delta;
                 totalFires += fires;
                 firm->fireEmployees(fires);
+                // actually remove ’fires’ fishermen from this firm
+                int fired = 0;
+                for (auto &fisher : fishers) {
+                    if (fisher->getFirmID() == firmID && fired < fires) {
+                        firm->removeEmployee(fisher);
+                        ++fired;
+                    }
+                }
             }
             firmFlows[firmID] = {hires, fires};
+        }
+        
+        for (auto &fisher : fishers) {
+            if (fisher->isLookingForJob()) {
+                auto app = fisher->generateJobApplication();
+                app.fisherman = fisher;              // link back to the shared_ptr
+                jobMarket->submitJobApplication(app);
+            }
         }
 
         jobMarket->clearMarket(generator);
@@ -382,7 +398,7 @@ class World {
         }
     
         // 5) Calcul du GDP.
-        for (auto& f: firms) f->recordRevenue();
+        
 
         // 6) GDP & sales debug
         double dailyGDP=0, sumRev=0;
