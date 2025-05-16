@@ -107,74 +107,59 @@ public:
     }
 
     // --- Market clearing: continuous double‐auction ---
-    virtual void clearMarket(std::default_random_engine& /*generator*/) override {
-        // Reset per‐round stats
+    // --- Market clearing: random‐allocation instead of price matching ---
+    virtual void clearMarket(std::default_random_engine& generator) override {
+        // 1. Reset per‐round stats
         purchases.clear();
-        matchedVolume     = 0.0;
-        double sumValue   = 0.0;
-        double totalVol   = 0.0;
+        matchedVolume = 0.0;
+        double sumValue = 0.0;
+        double totalVol = 0.0;
 
-        // Sort buy orders by descending bid, sell offers by ascending ask
-        std::sort(orders.begin(), orders.end(),
-            [](auto &a, auto &b) {
-                double pa = a.hungry ? a.availableFunds : a.perceivedValue;
-                double pb = b.hungry ? b.availableFunds : b.perceivedValue;
-                return pa > pb;
-            });
-        std::sort(offerings.begin(), offerings.end(),
-            [](auto &a, auto &b) {
-                return a.offeredPrice < b.offeredPrice;
-            });
-
-        // Match while best bid ≥ best ask
-        size_t i = 0, j = 0;
-        while (i < orders.size() && j < offerings.size()) {
-            auto &buy  = orders[i];
-            auto &sell = offerings[j];
-            double bidPrice = buy.hungry ? buy.availableFunds : buy.perceivedValue;
-
-            if (bidPrice >= sell.offeredPrice 
-                && buy.quantity  > 0.0 
-                && sell.quantity > 0.0)
-            {
-                // Trade the lesser of the two quantities (here usually =1)
-                double q       = std::min(buy.quantity, sell.quantity);
-                double txPrice = sell.offeredPrice;
-
-                // Update running totals
-                buy.quantity       -= q;
-                sell.quantity      -= q;
-                matchedVolume      += q;
-                totalVol           += q;
-                sumValue           += txPrice * q;
-                purchases[buy.id]  += q;
-
-                // Credit the selling firm
-                if (sell.firm) {
-                    sell.firm->addSale(txPrice, q);
-                }
-
-                if (buy.quantity  <= 0.0) ++i;
-                if (sell.quantity <= 0.0) ++j;
-            }
-            else {
-                break; // No further matches possible
+        // 2. Collect all firm IDs and their stock as weights
+        std::vector<int> firmIDs;
+        std::vector<double> weights;
+        for (auto &off : offerings) {
+            if (off.quantity > 0.0) {
+                firmIDs.push_back(off.id);
+                weights.push_back(off.quantity);
             }
         }
 
-        // Compute volume‐weighted clearing price
+        // 3. Distribute each unit of demand at random (weighted by stock)
+        if (!firmIDs.empty()) {
+            std::discrete_distribution<size_t> dist(weights.begin(), weights.end());
+            int totalDemandInt = static_cast<int>(aggregateDemand);
+            for (int k = 0; k < totalDemandInt; ++k) {
+                size_t idx = dist(generator);
+                int chosenFirmID = firmIDs[idx];
+                // Find the matching offering and "sell" 1 fish
+                for (auto &off : offerings) {
+                    if (off.id == chosenFirmID && off.quantity > 0.0) {
+                        off.quantity -= 1.0;
+                        purchases[off.id] += 1.0;
+                        off.firm->addSale(off.offeredPrice, 1.0);
+                        sumValue += off.offeredPrice;
+                        totalVol += 1.0;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 4. Compute average clearing price
         if (totalVol > 0.0) {
             clearingPrice = sumValue / totalVol;
         }
         clearingPrices.push_back(clearingPrice);
 
-        // Clean up for next round
+        // 5. Clean up for next round
         offerings.clear();
         orders.clear();
         aggregateSupply   = 0.0;
         aggregateDemand   = 0.0;
         matchedVolume     = 0.0;
     }
+
 
     // --- Reset entire market ---
     virtual void reset() override {
