@@ -264,7 +264,10 @@ class World {
          }
  
         // Hiring or Firing based on selected labour model
-        std::unordered_map<int, std::pair<int,int>> firmFlows;
+        std::unordered_map<int,std::pair<int,int>> firmFlows;
+        for (auto &firm : firms) {
+            firmFlows[firm->getID()] = {0, 0};
+        }
         int totalHires = 0;
         int totalFires = 0;
         unemployedIDs.clear();
@@ -273,10 +276,6 @@ class World {
         for (auto& firm : firms) {
             int firmID = firm->getID();
             int delta  = 0;
-            firmFlows.clear();
-            unemployedIDs.clear();
-            int cycleSalesAllFirms = 0;
-            int sumRev = 0.0;
 
             // compare strings, since SimulationParameters::labourModel is a string
             if      (params.labourModel == "PastPerformance") {
@@ -351,10 +350,14 @@ class World {
         std::cout << std::endl;
         std::cout << "Récapitulatif:" << std::endl;
         std::cout << "---- Employment Market Recap ----\n";
-        for (auto &e : firmFlows)
-            std::cout << "Firm " << e.first
-                    << " hired " << e.second.first
-                    << ", fired " << e.second.second << "\n";
+        std::cout << "\n=== Hiring/Firing summary for this cycle ===\n";
+        for (auto &e : firmFlows) {
+        std::cout << "Firm " << e.first
+                  << " hired " << e.second.first
+                  << ", fired " << e.second.second
+                  << "\n";
+    }
+    std::cout << "==========================================\n\n";
         std::cout << "Total hired this cycle: " << totalHires << "\n"
                 << "Total fired this cycle: " << totalFires << "\n"
                 << "Unemployed count: "        << unemployedIDs.size() << "\n"
