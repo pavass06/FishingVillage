@@ -241,15 +241,42 @@ class World {
             firmRevenues.push_back(firmRev);
         }
         
-         
+         // Debug: Identify current employment state.
+         std::vector<int> unemployedIDs;
+         for (const auto &fisher : fishers) {
+             if (fisher->getFirmID() == 0) unemployedIDs.push_back(fisher->getID());
+         }
+         std::vector<int> employedIDs;
+         std::vector<int> lookingIDs;
+         std::vector<int> firedIDs;
+         for (const auto &fisher : fishers) {
+             int id = fisher->getID();
+             if (fisher->getFirmID() == 0) {
+                 unemployedIDs.push_back(id);
+                 if (fisher->isLookingForJob())
+                     lookingIDs.push_back(id);
+             } else {
+                 employedIDs.push_back(id);
+             }
+             if (prevFirmIDs[id] != 0 && fisher->getFirmID() == 0) {
+                 firedIDs.push_back(id);
+             }
+         }
+ 
         // Hiring or Firing based on selected labour model
         std::unordered_map<int, std::pair<int,int>> firmFlows;
         int totalHires = 0;
         int totalFires = 0;
+        unemployedIDs.clear();
+        cycleSalesAllFirms = 0;
 
         for (auto& firm : firms) {
             int firmID = firm->getID();
-            int delta   = 0;
+            int delta  = 0;
+            firmFlows.clear();
+            unemployedIDs.clear();
+            int cycleSalesAllFirms = 0;
+            int sumRev = 0.0;
 
             // compare strings, since SimulationParameters::labourModel is a string
             if      (params.labourModel == "PastPerformance") {
@@ -260,7 +287,8 @@ class World {
                 delta = LabourDemandModels::computeJobsEUBI(
                             *firm, params.alpha);
             }
-            int hires = 0, fires = 0;
+            int hires = 0;
+            int fires = 0;
             if (delta > 0) {
                 hires = delta;
                 totalHires += hires;
@@ -282,30 +310,7 @@ class World {
         jobMarket->clearMarket(generator);
         int matches = jobMarket->getMatchedJobs();
         jobMarket->reset();
-
-        // Debug: Identify current employment state.
-        std::vector<int> unemployedIDs;
-        for (const auto &fisher : fishers) {
-            if (fisher->getFirmID() == 0) unemployedIDs.push_back(fisher->getID());
-        }
-        std::vector<int> employedIDs;
-        std::vector<int> lookingIDs;
-        std::vector<int> firedIDs;
-        for (const auto &fisher : fishers) {
-            int id = fisher->getID();
-            if (fisher->getFirmID() == 0) {
-                unemployedIDs.push_back(id);
-                if (fisher->isLookingForJob())
-                    lookingIDs.push_back(id);
-            } else {
-                employedIDs.push_back(id);
-            }
-            if (prevFirmIDs[id] != 0 && fisher->getFirmID() == 0) {
-                firedIDs.push_back(id);
-            }
-        }
-
-        double unemploymentRate = (fishers.empty() ? 0.0 : static_cast<double>(unemployedIDs.size()) / fishers.size());
+        
 
         // If a firm has no employees, it is removed from the simulation.
         firms.erase(std::remove_if(firms.begin(), firms.end(),
@@ -336,12 +341,8 @@ class World {
                     << ", fired " << e.second.second << "\n";
         std::cout << "Total hired this cycle: " << totalHires << "\n"
                 << "Total fired this cycle: " << totalFires << "\n"
-                << "Total matches (hires): "    << matches     << "\n"
                 << "Unemployed count: "        << unemployedIDs.size() << "\n"
                 << "Unemployment rate (%): "   << unemploymentRate*100 << "%\n";
-
-        Print("Total hired this step", totalHires);
-        Print("Total fired this step", totalFires);
         #endif
 
 
