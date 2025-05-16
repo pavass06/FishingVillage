@@ -3,6 +3,9 @@
 #include <cmath>      // std::ceil
 #include <algorithm>  // std::max
 
+
+using namespace std;
+
 namespace LabourDemandModels {
 
     int computeJobsPastPerformance(
@@ -11,7 +14,11 @@ namespace LabourDemandModels {
     ) {
         double prevRev = firm.getPreviousFirmRevenue();
         double currRev = firm.getCurrentFirmRevenue();
-        if (prevRev == 0) prevRev = 1e-6;
+        printf(" firm=%d \n",firm.getID());
+        printf(" getCurrentFirmRevenue= %f \n", firm.getCurrentFirmRevenue());
+        printf(" getPreviousFirmRevenue= %f \n", firm.getPreviousFirmRevenue());
+        printf(" ------ \n");
+        prevRev=std::max(prevRev,1e-6);
         double growth = (currRev - prevRev) / prevRev;
         if (growth > 2*growthThreshold) return 2; //hire
         if (growth > growthThreshold)   return 1;
@@ -26,6 +33,8 @@ namespace LabourDemandModels {
     ) {
         double Ystar = 0.5 * (firm.getCurrentFirmRevenue()
                               + firm.getPreviousFirmRevenue());
+        std::cout << " prev revenue " << firm.getCurrentFirmRevenue() << std::endl;
+        std::cout << " current revenue " << firm.getPreviousFirmRevenue() << std::endl;
         int Nstar = static_cast<int>(std::ceil(Ystar / alpha));
         int Ncurr = firm.getEmployeeCount();
         return Nstar - Ncurr;

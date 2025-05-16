@@ -54,9 +54,14 @@ public:
         return revenueHistory;
     }
     double getPreviousFirmRevenue() const {
+        int nsize = revenueHistory.size();
+        for (int i=0;i<nsize;i++)
+        {
+            printf(" %d %f \n",i,revenueHistory[i]);
+        }
         if (revenueHistory.size() >= 2)
             return revenueHistory[revenueHistory.size() - 2];
-        return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
+        return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());    
     }
     double getCurrentFirmRevenue() const {
         return (!revenueHistory.empty() ? revenueHistory.back() : getRevenue());
