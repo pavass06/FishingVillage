@@ -1,52 +1,77 @@
-import pandas as pd
+#!/usr/bin/env python3
+
+import sys
+import numpy as np
 import matplotlib.pyplot as plt
 
+# -----------------------------------------------------------------------------
+# Configuration : modifiez ici si besoin
+# -----------------------------------------------------------------------------
+# Chemin vers votre fichier CSV contenant les revenus :
+REVENUE_CSV = "../wrk/firm_revenu.csv"
+# Identifiants des firms, dans l'ordre des colonnes du CSV
+FIRM_IDS = [100, 101]
 
-import pandas as pd
-import matplotlib.pyplot as plt
+# -----------------------------------------------------------------------------
+# Chargement des données
+# -----------------------------------------------------------------------------
+print(f"Firm IDs: {FIRM_IDS}")
 
-# Path to your CSV file with firm revenues.
-csv_file = "../wrk/firm_revenu.csv"
+try:
+    # 1) Charger le CSV : chaque colonne = une firm, chaque ligne = 1 cycle
+    revenue_data = np.genfromtxt(REVENUE_CSV, delimiter=",")
+except Exception as e:
+    print(f"Error loading revenue data from '{REVENUE_CSV}': {e}")
+    sys.exit(1)
 
-# Read CSV file without header. The first row contains firm IDs.
-df = pd.read_csv(csv_file, header=None)
+print(f"Revenue data shape: {revenue_data.shape}")
 
-# Extract the first row as firm IDs.
-firm_ids = df.iloc[0].tolist()
-print("Firm IDs:", firm_ids)
+# -----------------------------------------------------------------------------
+# Protection contre données vides
+# -----------------------------------------------------------------------------
+if revenue_data.size == 0 or revenue_data.shape[0] == 0:
+    print("No revenue data to plot – revenue_data is empty.")
+    sys.exit(0)
 
-# The remaining rows contain revenue data; convert them to numeric values.
-revenue_data = df.iloc[1:].astype(float)
-print("Revenue data shape:", revenue_data.shape)
+# Si on a une seule colonne, garantir une matrice 2D
+if revenue_data.ndim == 1:
+    revenue_data = revenue_data.reshape(-1, 1)
 
-# The x-axis represents simulation cycles (starting at 1).
-cycles = range(1, revenue_data.shape[0] + 1)
+# -----------------------------------------------------------------------------
+# Filtrage des NaN / Inf
+# -----------------------------------------------------------------------------
+finite_mask = np.all(np.isfinite(revenue_data), axis=1)
+revenue_data = revenue_data[finite_mask]
 
-# Create a figure for the plot.
-plt.figure(figsize=(12, 7))
+if revenue_data.shape[0] == 0:
+    print("No finite revenue data to plot after filtering NaN/Inf.")
+    sys.exit(0)
 
-# Set a rolling window size to smooth the data.
-window_size = 10
+# -----------------------------------------------------------------------------
+# Préparation du tracé
+# -----------------------------------------------------------------------------
+n_cycles, n_firms = revenue_data.shape
+cycles = np.arange(n_cycles)
+max_val = np.max(revenue_data)
 
-# Plot revenue for each firm using a rolling average for smoothness.
-for idx, firm_id in enumerate(firm_ids):
-    # Select revenue data for this firm.
-    data = revenue_data.iloc[:, idx]
-    # Apply a rolling average (smoothed) with the defined window size.
-    smoothed_data = data.rolling(window=window_size, min_periods=1).mean()
-    # Plot without markers to show a continuous line.
-    plt.plot(cycles, smoothed_data, label=f'Firm {firm_id}', linestyle='-')
+# -----------------------------------------------------------------------------
+# Tracé
+# -----------------------------------------------------------------------------
+plt.figure()
+for idx, firm_id in enumerate(FIRM_IDS):
+    if idx < n_firms:
+        plt.plot(cycles,
+                 revenue_data[:, idx],
+                 marker="o",
+                 label=f"Firm {firm_id}")
+    else:
+        print(f"Warning: no data column for Firm ID {firm_id}")
 
-# Determine the maximum revenue value to set the y-axis limit with some headroom.
-max_val = revenue_data.max().max()
-plt.ylim(0, max_val * 1.2)
-
-# Set labels and title.
 plt.xlabel("Cycle")
 plt.ylabel("Revenue")
-plt.title("Firm Revenue Over Time (Smoothed)")
-plt.legend(title="Firm ID", loc='center left', bbox_to_anchor=(1, 0.5))
+plt.title(f"Revenue per cycle for firms: {FIRM_IDS}")
+plt.ylim(0, max_val * 1.2)
 plt.grid(True)
-plt.tight_layout(rect=[0, 0, 0.85, 1])
+plt.legend()
+plt.tight_layout()
 plt.show()
-

@@ -266,6 +266,9 @@ class World {
         // Hiring or Firing based on selected labour model
         std::unordered_map<int,std::pair<int,int>> firmFlows;
         for (auto &firm : firms) {
+                     firm->recordRevenue();
+                 }
+        for (auto &firm : firms) {
             firmFlows[firm->getID()] = {0, 0};
         }
         int totalHires = 0;
@@ -394,11 +397,6 @@ class World {
         Print("Nombre de commandes de poissons soumises", orderCount);
 
         fishingMarket->clearMarket(generator);
-
-        // Now, record the revenue for each firm only once—after processing fish market orders.
-        for (auto &firm : firms) {
-            firm->recordRevenue();
-        }
     
         // 5) Calcul du GDP.
         

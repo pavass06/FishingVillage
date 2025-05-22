@@ -1,5 +1,5 @@
 # 1. Simulation length
-TotalCycles              5      # total days to simulate
+TotalCycles              10      # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
@@ -40,7 +40,7 @@ postingRate             0.10      # fraction of employees posting vacancies
 firingRate              0.10      # fraction of employees fired
 
 # 6. Labour model
-labourModel             PastPerformance      # options: EUBI or PastPerformance
+labourModel             EUBI      # options: EUBI or PastPerformance
 growthThreshold         0.05     # minimum growth rate to trigger hiring
 alpha                   4.5     # marginal productivity (revenue per worker)
 

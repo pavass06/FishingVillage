@@ -33,8 +33,8 @@ namespace LabourDemandModels {
     ) {
         double Ystar = 0.5 * (firm.getCurrentFirmRevenue()
                               + firm.getPreviousFirmRevenue());
-        std::cout << " prev revenue " << firm.getCurrentFirmRevenue() << std::endl;
-        std::cout << " current revenue " << firm.getPreviousFirmRevenue() << std::endl;
+        std::cout << " prev revenue = " << firm.getPreviousFirmRevenue() << std::endl;
+        std::cout << " current revenue = " << firm.getCurrentFirmRevenue() << std::endl;
         int Nstar = static_cast<int>(std::ceil(Ystar / alpha));
         int Ncurr = firm.getEmployeeCount();
         return Nstar - Ncurr;
