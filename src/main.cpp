@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <ctime>
+#include <unordered_map>
 #include "World.h"
 #include "FishingFirm.h"
 #include "FisherMan.h"
@@ -37,6 +38,7 @@ int main(int argc, char* argv[]) {
         params.perceivedPriceMean
     );
 
+
     //Création du monde avec la nouvelle signature
     World world(params,jobMarket,fishingMarket);
 
@@ -44,6 +46,9 @@ int main(int argc, char* argv[]) {
     vector<shared_ptr<FishingFirm>> firms;
     double initialStock = params.totalFisherMen / params.totalFirms; //names wrong??
     int totalEmployed = static_cast<int>(round(params.initialEmployed * params.totalFisherMen));
+
+    // Map FisherID -> (somme des revenus, nombre de cycles)
+     std::unordered_map<int, std::pair<double,int>> fisherIncomeStats;
 
 #if verbose
     printf(" Total Employed =%d Initial Stock=%f \n", totalEmployed,initialStock);
@@ -142,12 +147,29 @@ int main(int argc, char* argv[]) {
         double cyclyGDP = dailyGDP / params.cycleScale;
         double inflation = world.getInflation(day);
         double unemployment = world.getUnemployment(day);
+        // Accumulation des revenus cycle par cycle
+        for (const auto& fisher : world.getFishers()) {
+            int id = fisher->getID();
+            double income = fisher->getIncome();
+            auto& stats = fisherIncomeStats[id];
+            stats.first  += income;  // somme des revenus
+            stats.second += 1;      // nombre de cycles
+}
 
         summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
                     << cyclyGDP << "," << totalFishers << ","
                     << perCapita << "," << unemployment*100 << "," << inflation * 100 << "\n";
     }
     summaryFile.close();
+
+    // Export des revenus moyens des pêcheurs
+    std::ofstream avgFile("fisher_avg_income.csv");
+    avgFile << "FisherID,AverageIncome\n";
+    for (const auto& [id, stats] : fisherIncomeStats) {
+        double avgIncome = stats.first / stats.second;
+        avgFile << id << "," << avgIncome << "\n";
+    }
+    avgFile.close();
 
     // Write firm revenue history to file. Is this neccesary? Too complicated
     int maxCycles = 0;

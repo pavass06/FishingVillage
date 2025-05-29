@@ -166,7 +166,7 @@ class World {
     const std::vector<double>& getUnemploymentHistory() const {
         return unemploymentHistory;
     }
-    
+
     // Simulation d'un cycle.
     void simulateCycle(std::default_random_engine &generator,
                        std::normal_distribution<double> /* &firmPriceDist */,
