@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
             id,
             /* initFunds */   params.initialFisherFunds,
             /* lifetime */    lifetime,
-            /* income */      age,
+            /* income */      0,
             /* savings */     params.initialSavings,
             /* jobDemand */   params.initialJobDemand,
             /* goodsDemand */ params.initialGoodsDemand,
@@ -116,6 +116,10 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < employedFishers.size(); ++i) {
         firms[i % firms.size()]->addEmployee(employedFishers[i]);
     }
+    unordered_map<int,double> lastFunds;
+        for (const auto& fisher : world.getFishers()) {
+            lastFunds[fisher->getID()] = fisher->getFunds();
+     
 
     cout << "BEGIN program ..." << endl;
     cout << "Days to simulate: " << params.totalCycles << endl;
@@ -136,29 +140,43 @@ int main(int argc, char* argv[]) {
     normal_distribution<double> localConsumerPriceDist(params.perceivedPriceMean, params.perceivedPriceVariance);
     uniform_int_distribution<int> goodsQuantityDist(params.goodsQuantityMin, params.goodsQuantityMax);
 
-    for (int day = 0; day < params.totalCycles; day++) {
-        world.simulateCycle(generator, unusedFirmPriceDist, goodsQuantityDist, localConsumerPriceDist);
-
-        int cycle = day + 1;
-        double currentYear = cycle / params.cycleScale;
-        double dailyGDP = world.getGDP();
-        int totalFishers = world.getTotalFishers();
-        double perCapita = (totalFishers > 0) ? (dailyGDP / totalFishers) : 0.0;
-        double cyclyGDP = dailyGDP / params.cycleScale;
-        double inflation = world.getInflation(day);
-        double unemployment = world.getUnemployment(day);
-        // Accumulation des revenus cycle par cycle
-        for (const auto& fisher : world.getFishers()) {
-            int id = fisher->getID();
-            double income = fisher->getIncome();
-            auto& stats = fisherIncomeStats[id];
-            stats.first  += income;  // somme des revenus
-            stats.second += 1;      // nombre de cycles
-}
-
-        summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
-                    << cyclyGDP << "," << totalFishers << ","
-                    << perCapita << "," << unemployment*100 << "," << inflation * 100 << "\n";
+    for (int day = 0; day < params.totalCycles; ++day) {
+        world.simulateCycle(generator,
+                            unusedFirmPriceDist,
+                            goodsQuantityDist,
+                            localConsumerPriceDist);
+    
+        int cycle        = day + 1;
+        double currentYear = static_cast<double>(cycle) / params.cycleScale;
+        double dailyGDP    = world.getGDP();
+        int totalFishers   = world.getTotalFishers();
+        double perCapita   = totalFishers > 0 ? dailyGDP / totalFishers : 0.0;
+        double cycleGDP    = dailyGDP / params.cycleScale;
+        double inflation   = world.getInflation(day);
+        double unemployment = world.getUnemployment(day) * 100;
+    
+        // Accumulate true daily income deltas per fisher
+        for (const auto& f : world.getFishers()) {
+            int    id      = f->getID();
+            double nowFunds = f->getFunds();        // use f, not fisher
+            double delta    = nowFunds - lastFunds[id];
+            lastFunds[id]   = nowFunds;
+            if (delta > 0.0) {
+                auto& stats = fisherIncomeStats[id];
+                stats.first  += delta;  // sum of positive daily gains
+                stats.second += 1;      // count of positive‐income days
+            }
+        }
+    
+        summaryFile
+            << cycle        << ','
+            << currentYear  << ','
+            << dailyGDP     << ','
+            << cycleGDP     << ','
+            << totalFishers << ','
+            << perCapita    << ','
+            << unemployment << ','
+            << inflation    << '\n';
     }
     summaryFile.close();
 
@@ -211,4 +229,5 @@ int main(int argc, char* argv[]) {
     cout << "... END program" << endl;
 
     return 0;
+    }
 }
