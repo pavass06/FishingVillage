@@ -195,6 +195,8 @@ int main(int argc, char* argv[]) {
 
     auto stop = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = stop - start;
+    cout << "Death by straving    : "<< world.getDeathByStarvation() <<  endl;
+    cout << "Natural death : "  << world.getDeathByAge() <<  endl;
     cout << "Elapsed time: " << elapsed.count() << " seconds" << endl;
     cout << "... END program" << endl;
 

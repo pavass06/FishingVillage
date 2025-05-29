@@ -58,6 +58,8 @@ class World {
         int nsalestotal;          // cumulative sales of the *current* firm
         int cycleSalesAllFirms;   // per-cycle sales across *all* firms
         int totalSalesAllFirms;   // cumulative sales across *all* firms
+        int deathByAge = 0;
+        int deathByStarvation = 0;
 
     public:
 
@@ -131,6 +133,9 @@ class World {
         }
         return populationAgeDistribution;
     }
+
+    int getDeathByAge() const { return deathByAge; }
+    int getDeathByStarvation() const { return deathByStarvation; }
     
     double getUnemployment(int day) const {
         if (day >= 0 && static_cast<std::size_t>(day) < unemploymentHistory.size()) {
@@ -194,6 +199,10 @@ class World {
         for (auto &fisher : fishers) {
             if (fisher->isActive())
                 fisher->update();
+            if (!fisher->isActive() && fisher->getAge() >= fisher->getLifetime()) {
+            // mort de vieillesse détectée
+            deathByAge++;
+            }
         }
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
             [](const std::shared_ptr<FisherMan> &f) { return !f->isActive(); }),
@@ -468,6 +477,7 @@ GDP = dailyGDP;
             int fID = fisher->getID();
             if (daysWithoutEat[fID] >= maxStarvingDays) {
                 fisher->setActive(false);
+                deathByStarvation++; 
             }
         }
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
