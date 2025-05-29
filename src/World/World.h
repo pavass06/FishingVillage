@@ -109,6 +109,10 @@ class World {
     int getTotalFishers() const {
         return static_cast<int>(fishers.size());
     }
+
+    const std::vector<std::shared_ptr<FisherMan>>& getFishers() const {
+        return fishers;
+    }
     
     double getGDP() const { return GDP; }
     double getUnemploymentRate() const { return unemploymentRate; }
