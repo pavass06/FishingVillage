@@ -465,19 +465,13 @@ GDP = dailyGDP;
 #endif
         
         // 7) Famine: mise à jour des jours sans manger.
-        std::unordered_map<int, double> purchases = fishingMarket->getPurchases();
-        for (auto &fisher : fishers) {
+        const auto &purchases = fishingMarket->getPurchases();
+        for (const auto &fisher : fishers) {
             int fID = fisher->getID();
-            if (purchases.find(fID) == purchases.end() || purchases[fID] < 1.0)
-                daysWithoutEat[fID]++;
-            else
-                daysWithoutEat[fID] = 0;
-        }
-        for (auto &fisher : fishers) {
-            int fID = fisher->getID();
-            if (daysWithoutEat[fID] >= maxStarvingDays) {
-                fisher->setActive(false);
-                deathByStarvation++; 
+            if (purchases.count(fID) > 0) {
+                daysWithoutEat[fID] = 0;   // il a mangé ≥1 poisson
+            } else {
+                daysWithoutEat[fID]++;     // pas d’achat → +1 jour sans manger
             }
         }
         fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
