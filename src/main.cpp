@@ -145,21 +145,9 @@ int main(int argc, char* argv[]) {
 
         summaryFile << cycle << "," << currentYear << "," << dailyGDP << ","
                     << cyclyGDP << "," << totalFishers << ","
-                    << perCapita << "," << unemployment << "," << inflation * 100 << "\n";
+                    << perCapita << "," << unemployment*100 << "," << inflation * 100 << "\n";
     }
     summaryFile.close();
-
-    const vector<double>& unemploymentHistory = world.getUnemploymentHistory();
-    ofstream unempFile("unemploymentHistory.csv");
-    if (!unempFile.is_open()) {
-        cerr << "Error: Unable to open unemployment output file." << endl;
-        return 1;
-    }
-    unempFile << "Cycle,UnemploymentRate\n";
-    for (size_t i = 0; i < unemploymentHistory.size(); i++) {
-        unempFile << i+1 << "," << unemploymentHistory[i] * 100 << "\n";
-    }
-    unempFile.close();
 
     // Write firm revenue history to file. Is this neccesary? Too complicated
     int maxCycles = 0;
