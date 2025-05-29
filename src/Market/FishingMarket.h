@@ -125,26 +125,27 @@ public:
             }
         }
 
-        // 3. Distribute each unit of demand at random (weighted by stock)
+        // 3. Distribuer chaque commande aux firmes et tracer par pêcheur
         if (!firmIDs.empty()) {
             std::discrete_distribution<size_t> dist(weights.begin(), weights.end());
-            int totalDemandInt = static_cast<int>(aggregateDemand);
-            for (int k = 0; k < totalDemandInt; ++k) {
+            for (const auto &order : orders) {
+                if (order.quantity <= 0.0) continue;    // pas de commande
                 size_t idx = dist(generator);
                 int chosenFirmID = firmIDs[idx];
-                // Find the matching offering and "sell" 1 fish
+                // Chercher l'offre correspondante
                 for (auto &off : offerings) {
                     if (off.id == chosenFirmID && off.quantity > 0.0) {
-                        off.quantity -= 1.0;
-                        purchases[off.id] += 1.0;
+                        off.quantity -= 1.0;               // on vend 1 poisson
+                        purchases[order.id] += 1.0;        // ← on trace l’achat du pêcheur
                         off.firm->addSale(off.offeredPrice, 1.0);
                         sumValue += off.offeredPrice;
-                        totalVol += 1.0;
+                        totalVol  += 1.0;
                         break;
                     }
                 }
             }
         }
+
 
         // 4. Compute average clearing price
         if (totalVol > 0.0) {
