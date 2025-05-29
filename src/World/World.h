@@ -464,19 +464,34 @@ GDP = dailyGDP;
         std::cout << "Taux de chômage : " << unemploymentRate * 100 << "%" << std::endl;
 #endif
         
-        // 7) Famine: mise à jour des jours sans manger.
-        const auto &purchases = fishingMarket->getPurchases();
-        for (const auto &fisher : fishers) {
+auto purchases = fishingMarket->getPurchases();   // copie de la map cycle courant
+
+        // 7) Famine : mise à jour + éventuelle mort
+        for (auto &fisher : fishers) {
             int fID = fisher->getID();
-            if (purchases.count(fID) > 0) {
-                daysWithoutEat[fID] = 0;   // il a mangé ≥1 poisson
+
+            // Test sans insertion :
+            auto it = purchases.find(fID);
+            bool hasEaten = (it != purchases.end() && it->second >= 1.0);
+
+            if (hasEaten) {
+                daysWithoutEat[fID] = 0;     // a mangé ≥1 poisson → reset
             } else {
-                daysWithoutEat[fID]++;     // pas d’achat → +1 jour sans manger
+                daysWithoutEat[fID]++;       // n’a pas mangé → +1 jour
+                if (daysWithoutEat[fID] >= maxStarvingDays) {
+                    fisher->setActive(false);
+                    deathByStarvation++;
+                }
             }
         }
-        fishers.erase(std::remove_if(fishers.begin(), fishers.end(),
-            [](const std::shared_ptr<FisherMan>& f) { return !f->isActive(); }),
-            fishers.end());
+
+        // 8) On retire les pêcheurs morts
+        fishers.erase(
+            std::remove_if(fishers.begin(), fishers.end(),
+                [](const std::shared_ptr<FisherMan>& f){ return !f->isActive(); }),
+            fishers.end()
+        );
+
         std::cout << "Nombre de pêcheurs après famine : " << fishers.size() << std::endl;
     
         // 8) Calcul de l'inflation.
