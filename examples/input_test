@@ -1,11 +1,11 @@
 # 1. Simulation length
-TotalCycles              20000     # total days to simulate
+TotalCycles              50000     # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
 totalFisherMen           100       # initial number of fishers
 annualBirthRate          0.05      # birth rate (in fraction)
-maxStarvingDays          3       # days without fish before death
+maxStarvingDays          10       # days without fish before death
 fisherAgeMean            30.0      # mean initial age (years)
 fisherAgeVariance        20.0      # variance of initial age
 fisherLifetimeMean       40.0      # mean fisher lifetime (years)
