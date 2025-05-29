@@ -46,6 +46,7 @@ public:
     // Getters
     int getID() const { return ID; }
     double getFunds() const { return funds; }
+    int getLifetime() const { return lifetime; }
     bool isActive() const { return status; }
 };
 

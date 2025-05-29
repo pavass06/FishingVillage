@@ -1,10 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
-import pandas as pd
-import matplotlib.pyplot as plt
-
 # Path to your CSV file with firm revenues.
 csv_file = "../wrk/firm_revenu.csv"
 
