@@ -1,5 +1,5 @@
 # 1. Simulation length
-TotalCycles              50000     # total days to simulate
+TotalCycles              5000    # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
