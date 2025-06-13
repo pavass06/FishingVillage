@@ -180,14 +180,29 @@ int main(int argc, char* argv[]) {
     }
     summaryFile.close();
 
-    // Export des revenus moyens des pêcheurs
-    std::ofstream avgFile("fisher_avg_income.csv");
-    avgFile << "FisherID,AverageIncome\n";
-    for (const auto& [id, stats] : fisherIncomeStats) {
-        double avgIncome = stats.first / stats.second;
-        avgFile << id << "," << avgIncome << "\n";
+    // 1) Prépare le CSV de snapshots
+    ofstream avgOut("fisher_avg_income.csv");
+    avgOut << "cycle";
+    for (const auto& [id, stats] : fisherIncomeStats)
+        avgOut << ",id_" << id;
+    avgOut << "\n";
+
+    // 2) Boucle de simulation
+    for (int cycle = 1; cycle <= params.totalCycles; ++cycle) {
+        // … simulate_one_day, mise à jour de stats.first (gains) et stats.second (jours)
+
+        if (cycle % 1000 == 0) {
+            avgOut << cycle;
+            for (const auto& [id, stats] : fisherIncomeStats) {
+                double avgIncome = stats.first / static_cast<double>(cycle);
+                avgOut << "," << std::fixed << std::setprecision(6) << avgIncome;
+            }
+            avgOut << "\n";
+        }
     }
-    avgFile.close();
+
+    avgOut.close();
+    return 0;
 
     // Write firm revenue history to file. Is this neccesary? Too complicated
     int maxCycles = 0;

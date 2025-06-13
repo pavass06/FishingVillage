@@ -1,48 +1,26 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
-# Path to your CSV file with firm revenues.
-csv_file = "../wrk/firm_revenu.csv"
+# 1. Lecture des données générées par main.cpp
+df = pd.read_csv("../wrk/fisher_avg_income_snapshots.csv")
+cycles = df["cycle"].values
+income_cols = [c for c in df.columns if c.startswith("id_")]
 
-# Read CSV file without header. The first row contains firm IDs.
-df = pd.read_csv(csv_file, header=None)
+# 2. Préparation de la figure
+fig, ax = plt.subplots(figsize=(6,4))
 
-# Extract the first row as firm IDs.
-firm_ids = df.iloc[0].tolist()
-print("Firm IDs:", firm_ids)
+def animate(i):
+    ax.clear()
+    t = cycles[i]
+    data = df.loc[i, income_cols].values.astype(float)
+    ax.hist(data, bins=20, edgecolor="black")
+    ax.set_title(f"Distribution des revenus moyens – jour {t}")
+    ax.set_xlabel("Average Income")
+    ax.set_ylabel("Nombre de pêcheurs")
+    ax.grid(True)
 
-# The remaining rows contain revenue data; convert them to numeric values.
-revenue_data = df.iloc[1:].astype(float)
-print("Revenue data shape:", revenue_data.shape)
+# 3. Création de l’animation
+ani = FuncAnimation(fig, animate, frames=len(cycles), interval=500)
 
-# The x-axis represents simulation cycles (starting at 1).
-cycles = range(1, revenue_data.shape[0] + 1)
-
-# Create a figure for the plot.
-plt.figure(figsize=(12, 7))
-
-# Set a rolling window size to smooth the data.
-window_size = 10
-
-# Plot revenue for each firm using a rolling average for smoothness.
-for idx, firm_id in enumerate(firm_ids):
-    # Select revenue data for this firm.
-    data = revenue_data.iloc[:, idx]
-    # Apply a rolling average (smoothed) with the defined window size.
-    smoothed_data = data.rolling(window=window_size, min_periods=1).mean()
-    # Plot without markers to show a continuous line.
-    plt.plot(cycles, smoothed_data, label=f'Firm {firm_id}', linestyle='-')
-
-# Determine the maximum revenue value to set the y-axis limit with some headroom.
-max_val = revenue_data.max().max()
-plt.ylim(0, max_val * 1.2)
-
-# Set labels and title.
-plt.xlabel("Cycle")
-plt.ylabel("Revenue")
-plt.title("Firm Revenue Over Time (Smoothed)")
-plt.legend(title="Firm ID", loc='center left', bbox_to_anchor=(1, 0.5))
-plt.grid(True)
-plt.tight_layout(rect=[0, 0, 0.85, 1])
 plt.show()
-
