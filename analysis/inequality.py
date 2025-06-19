@@ -1,9 +1,17 @@
+import sys, os
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # 1. Lecture des données
-df = pd.read_csv('../wrk/income_snapshots.csv')
+if len(sys.argv) != 2:
+    print("Usage: python inequality.py <output_dir>")
+    sys.exit(1)
+output_dir = sys.argv[1]
+infile = os.path.join(output_dir, "income_snapshots.csv")
+
+# Lecture des données
+df = pd.read_csv(infile)
 
 # 2. Extraction des instants et pré-calcul des variances
 times = sorted(df['time'].unique())

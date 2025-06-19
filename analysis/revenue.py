@@ -1,11 +1,16 @@
+import sys, os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Path to your CSV file with firm revenues.
-csv_file = "../wrk/firm_revenu.csv"
+if len(sys.argv) != 2:
+    print("Usage: python revenue.py <output_dir>")
+    sys.exit(1)
+output_dir = sys.argv[1]
+infile = os.path.join(output_dir, "firm_revenu.csv")
 
-# Read CSV file without header. The first row contains firm IDs.
-df = pd.read_csv(csv_file, header=None)
+# Lecture des revenus historiques
+df = pd.read_csv(infile)
+
 
 # Extract the first row as firm IDs.
 firm_ids = df.iloc[0].tolist()

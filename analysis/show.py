@@ -1,12 +1,19 @@
+import sys, os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Fixed file path (change if necessary)
-filepath = "../wrk/economicdatas.csv"
+import pandas as pd
+import matplotlib.pyplot as plt
+
+if len(sys.argv) != 2:
+    print("Usage: python show.py <output_dir>")
+    sys.exit(1)
+output_dir = sys.argv[1]
+infile = os.path.join(output_dir, "economicdatas.csv")
 
 # Load the data and clean column names
 # Adjust sep and decimal to your CSV format (',' or ';', '.' or ',')
-raw = pd.read_csv(filepath, sep=",", decimal='.', engine='python')
+raw = pd.read_csv(infile, sep=",", decimal='.', engine='python')
 raw.columns = raw.columns.str.strip()  # Remove any extra spaces from column names
 
 # Optional: Inspect the raw Cycle values to ensure they are the days you expect
