@@ -1,44 +1,74 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
-EXAMPLE=(1 2 3 4 5 6 7 8 9)
-RUN="./wrk/agent.exe"
-INPUT_DIR="input"
-OUTPUT_DIR="output"
-SOURCE_CSV_DIR="wrk"
+# —————————————————————————
+# 1) CONFIGURATION
+# —————————————————————————
+AGENT_DIR="wrk"                # dossier contenant agent.exe
+AGENT="agent.exe"              # nom de l'exécutable
+INPUT_DIR="input"              # dossier contenant input_testN
+OUTPUT_BASE="output"           # dossier parent des out_testN
+TESTS=(1 2 3 4 5 6 7 8 9)      # numéros de tests à lancer
+# —————————————————————————
 
-# Création du dossier global de sortie s’il n’existe pas
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_BASE"
 
-for exam in "${EXAMPLE[@]}"; do
-  INPUT_FILE="$INPUT_DIR/input_test$exam"
-  OUTDIR="$OUTPUT_DIR/out_test$exam"
+for n in "${TESTS[@]}"; do
+  IN="$INPUT_DIR/input_test$n"
+  OUT="$OUTPUT_BASE/out_test$n"
 
-  echo "→ Lancement test $exam avec $INPUT_FILE"
+  echo "→ Test #$n : $IN → $OUT"
 
-  if [ ! -f "$INPUT_FILE" ]; then
-    echo "⚠️  Fichier $INPUT_FILE introuvable"
+  # Vérifie l'existence de l'input
+  if [ ! -f "$IN" ]; then
+    echo "   ⚠️  $IN introuvable, skip."
     continue
   fi
 
-  # Nettoyage du dossier de sortie
-  rm -rf "$OUTDIR"
-  mkdir -p "$OUTDIR"
+  # (Re)crée le dossier de sortie
+  rm -rf "$OUT"
+  mkdir -p "$OUT"
 
-  # Lancement de la simulation
-  "$RUN" "$INPUT_FILE" > screen 2>&1
+  # 1️⃣ On passe dans wrk/
+  pushd "$AGENT_DIR" >/dev/null
 
-  # Déplacement des CSVs générés dans wrk/ → dans output/out_testX
-  for file in economicdatas.csv firm_revenu.csv fisher_avg_income.csv; do
-    if [ -f "$SOURCE_CSV_DIR/$file" ]; then
-      mv "$SOURCE_CSV_DIR/$file" "$OUTDIR/"
+    # Nettoie d'anciens CSV
+    rm -f ./*.csv
+
+    # Désactive le 'exit on error' le temps de lancer l'agent
+    set +e
+    ./"$AGENT" "../$IN" > screen 2>&1
+    AGENT_STATUS=$?
+    set -e
+
+    if [ "$AGENT_STATUS" -ne 0 ]; then
+      echo "   ⚠️  agent.exe a retourné le code $AGENT_STATUS"
     else
-      echo "⚠️  Fichier $file manquant pour test $exam"
+      echo "   ✔️  Simulation terminée sans erreur"
     fi
-  done
 
-  # Déplacement du screen
-  mv screen "$OUTDIR/"
+  # Retour à la racine
+  popd >/dev/null
 
-  echo "✔️ Résultats enregistrés dans $OUTDIR"
+  # 2️⃣ On déplace tous les CSV générés
+  shopt -s nullglob
+  csvs=( "$AGENT_DIR"/*.csv )
+  if [ ${#csvs[@]} -gt 0 ]; then
+    mv "${csvs[@]}" "$OUT"/
+    echo "   ✔️  ${#csvs[@]} CSV déplacés vers $OUT"
+  else
+    echo "   ⚠️  Aucun CSV généré pour le test $n"
+  fi
+  shopt -u nullglob
+
+  # 3️⃣ On bouge le log 'screen'
+  if [ -f "$AGENT_DIR/screen" ]; then
+    mv "$AGENT_DIR/screen" "$OUT"/
+    echo "   ✔️  screen déplacé vers $OUT"
+  else
+    echo "   ⚠️  screen manquant pour le test $n"
+  fi
+
+  echo "✔️  Test #$n terminé."
 done
-
