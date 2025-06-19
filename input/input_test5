@@ -1,27 +1,27 @@
 # 1. Simulation length
-TotalCycles              10       # total days to simulate
+TotalCycles              50000     # total days to simulate
 cycleScale               365       # days per “year”
 
 # 2. Population & Demographics
 totalFisherMen           100       # initial number of fishers
 annualBirthRate          0.05      # birth rate (in fraction)
-maxStarvingDays          5         # days without fish before death
+maxStarvingDays          10       # days without fish before death
 fisherAgeMean            30.0      # mean initial age (years)
 fisherAgeVariance        20.0      # variance of initial age
-fisherLifetimeMean       60.0      # mean fisher lifetime (years)
+fisherLifetimeMean       40.0      # mean fisher lifetime (years)
 fisherLifetimeVariance   5.0       # variance of fisher lifetime
 
 # 3. Derived population fractions (as fraction of totalFisherMen)
-totalFirms               0.01      # number of firms (as a fraction of initial pop)
+totalFirms               0.06      # number of firms (as a fraction of initial pop)
 initialEmployed          0.90      # 90% of fishers start employed
 totalJobOffers           0.10      # 10% of fishers receive offers
 
 # 4. Economic policy & market
 initialWage              5.1       # starting wage / price reference
 offeredPriceMean         5.0       # mean price offered by firms
-offeredPriceVariance     0.5       # variance of offered‐price dist.
-perceivedPriceMean       5.0       # mean price perceived by consumers (the "worth it to buy" price)
-perceivedPriceVariance   0.8       # variance of perceived‐price dist.
+offeredPriceVariance     0.0       # variance of offered‐price dist.
+perceivedPriceMean       5.0       # mean price perceived by consumers
+perceivedPriceVariance   0.0       # variance of perceived‐price dist.
 employeeEfficiency       2.0       # fish caught per fisher per day
 
 # 4.1. Firm funds & lifetime
@@ -40,9 +40,9 @@ postingRate             0.10      # fraction of employees posting vacancies
 firingRate              0.10      # fraction of employees fired
 
 # 6. Labour model
-labourModel             EUBI      # options: EUBI or PastPerformance
-growthThreshold         0.10      # minimum growth rate to trigger hiring
-alpha                   100.0     # marginal productivity (revenue per worker)
+labourModel             PastPerformance      # options: EUBI or PastPerformance
+growthThreshold         0.05     # minimum growth rate to trigger hiring
+alpha                   4.5     # marginal productivity (revenue per worker)
 
 # 7. Goods demand
 goodsQuantityMin        1         # min goods per consumer per day
