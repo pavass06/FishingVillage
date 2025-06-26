@@ -7,3 +7,4 @@ wrk/*.csv
 wrk/*.py
 *.csv
 *.csv
+*.csv
