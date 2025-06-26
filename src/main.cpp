@@ -109,7 +109,8 @@ int main(int argc, char* argv[]) {
             "fishing",
             /* edu */        1,
             /* exp */        1,
-            /* pref */       1
+            /* pref */       1,
+            /* maxSalary */  params.maxSalary
         );
         world.addFisherMan(fisher);
         if (initiallyEmployed)

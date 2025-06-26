@@ -66,6 +66,7 @@ struct SimulationParameters {
      double initialSavings;       // Initial savings for each fisher
      double initialJobDemand;     // Initial job‐demand factor
      double initialGoodsDemand;   // Initial goods‐demand factor
+     double maxSalary;            // Salary cap per cycle 
 };
 
 /**
@@ -145,6 +146,7 @@ inline SimulationParameters readParametersFromFile(const std::string& filename) 
         params.initialSavings      = stod(kv.at("initialSavings"));
         params.initialJobDemand    = stod(kv.at("initialJobDemand"));
         params.initialGoodsDemand  = stod(kv.at("initialGoodsDemand"));
+        params.maxSalary           = stod(kv.at("maxSalary"));
 
 
     }

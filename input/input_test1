@@ -53,3 +53,4 @@ initialFisherFunds    0.0    # initial funds for each fisher
 initialSavings        0.0    # initial savings for each fisher
 initialJobDemand      1.0    # initial job‐demand factor
 initialGoodsDemand    1.0    # initial goods‐demand factor
+maxSalary             100.0  # maximun salary per day 

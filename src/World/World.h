@@ -226,7 +226,7 @@ class World {
                 newID++;
                 auto newFisher = std::make_shared<FisherMan>(
                     newID, 0.0, days_in_year * 60, 0.0, 0.0, 1.0, 1.0, false,
-                    10.0, 0.0, "fishing", 1, 1, 1
+                    10.0, 0.0, "fishing", 1, 1, 1, params.maxSalary
                 );
                 addFisherMan(newFisher);
             }

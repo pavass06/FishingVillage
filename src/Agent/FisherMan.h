@@ -24,15 +24,16 @@ protected:
 
     // NEW: Flag indicating if the fisherman is actively looking for a job.
     bool looking_for_job;
+    double maxSalary;
 
 public:
     // Constructor with firmID parameter (0 if unemployed). Initialize looking_for_job accordingly.
     FisherMan(int id, double initFunds, int lifetime, double income, double savings,
               double jobDemand, double goodsDemand, int firmID, double wage,
               double /* unemploymentBenefit */, 
-              const std::string &jobSector, int educationLevel, int experienceLevel, int jobPreference)
+              const std::string &jobSector, int educationLevel, int experienceLevel, int jobPreference, double maxSalary)
         : Household(id, initFunds, lifetime, income, savings, jobDemand, goodsDemand),
-          firmID(firmID), wage(wage),
+          firmID(firmID), wage(wage), maxSalary(maxSalary),
           jobSector(jobSector), educationLevel(educationLevel),
           experienceLevel(experienceLevel), jobPreference(jobPreference)
     {
@@ -45,7 +46,9 @@ public:
     // If employed (firmID != 0), he receives his wage.
     virtual void act() override {
         if (firmID != 0) {
-            funds += wage;
+            // on ne verse jamais plus que maxSalary
+            double pay = std::min(wage, maxSalary);
+            funds += pay;
             // When working, he is not actively looking for a new job.
             looking_for_job = false;
         }

@@ -25,7 +25,7 @@ raw['Cycle'] = raw['Cycle'].astype(int)
 
 # Define the x-axis and y-axis parameters
 x_parameter = "Cycle"      # x-axis set to the raw day count
-y_parameter = "Population"   # change this to "DailyGDP", "Population", etc.
+y_parameter = "DailyGDP"   # change this to "DailyGDP", "Population", etc.
 
 # Downsampling configuration: use step=1 for full data, or change to e.g., 100 for every 100th row
 downsample_step = 1  # Use 1 to plot every day; increase to 10, 100, etc. to speed up
