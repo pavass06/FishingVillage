@@ -5,3 +5,4 @@ data/simulation_summary.csv
 wrk/screen
 wrk/*.csv
 wrk/*.py
+*.csv
